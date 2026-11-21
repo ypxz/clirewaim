@@ -167,3 +167,51 @@ class TopicTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class BacktestTests(unittest.TestCase):
+    def _game(self) -> dict:
+        rival = {
+            "a": 80.0,
+            "a_kind": "exact",
+            "fair": True,
+            "b_lo": 100.0,
+            "b_hi": 100.0,
+        }
+        item = {
+            "index": 1,
+            "logged": True,
+            "net": 10.0,
+            "t_lo": 90.0,
+            "t_hi": 120.0,
+            "cap": None,
+            "teams": {"us": {"a": 70.0}, "rival": rival},
+        }
+        return {"id": 1, "items": [item, dict(item, index=2, logged=False)]}
+
+    def test_fair_charge_and_accepting_limit(self) -> None:
+        from ultraanalyse import backtest
+
+        row = backtest.score_game(
+            self._game(), "us", {1: (90.0, 85.0), 2: (90.0, 85.0)}
+        )
+        # Rival accepts our fair 90; we accept its fair 80. The unlogged item is left out.
+        self.assertEqual(
+            (row["items"], row["low"], row["high"], row["played"]),
+            (1, 10.0, 10.0, 10.0),
+        )
+
+    def test_charge_inside_the_bracket_is_a_range_and_a_low_limit_pays_the_penalty(
+        self,
+    ) -> None:
+        from ultraanalyse import backtest
+
+        row = backtest.score_game(self._game(), "us", {1: (100.0, 0.0)})
+        # 100 may be fair (paid 100) or an Overcharge the rival accepts at its Limit of 100;
+        # rejecting the rival's fair 80 costs 120.
+        self.assertEqual((row["low"], row["high"]), (100.0 - 120.0, 100.0 - 120.0))
+
+    def test_a_game_without_replayed_items_is_skipped(self) -> None:
+        from ultraanalyse import backtest
+
+        self.assertIsNone(backtest.score_game(self._game(), "us", {}))

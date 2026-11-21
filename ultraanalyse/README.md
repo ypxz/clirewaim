@@ -57,3 +57,18 @@ difference from the first tournament's record, where `amount` on a wrongful reje
   earned. That Charge is a floor on the best one, so the gap is conservative.
 
 Both hold every other team's numbers fixed. They are hindsight, not a strategy.
+
+## Backtest a change
+
+Rivals' numbers in a settled Game are fixed, so a different submission of ours can be scored
+after the fact. Replay the Cases without posting, in a second copy of the repo (a replay
+writes to `var/`, and the live runner must keep its own):
+
+```bash
+python main.py --retry-dry 2>&1 | tee var/runner.log      # in the copy, with the change applied
+python -m ultraanalyse.backtest --var /path/to/copy/var    # here
+```
+
+It prints the replay's net as a range next to what was played, for all, odd and even Games.
+Run the unchanged pipeline once first: two model reads of one Case differ, and that
+difference is the noise a change has to beat.
