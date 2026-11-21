@@ -112,6 +112,8 @@ def charge_rules() -> dict:
 
 def report(items: list[dict], us: str, label: str) -> None:
     print(f"\n== {label}: {len(items)} Line Items")
+    if not items:
+        return
     base = sum(reviewer_cost(i, us, i["b"]) for i in items)
     actual = sum(i["cost"] for i in items)
     print(f"Reviewer cost as played: replay {base:,.0f}, record {actual:,.0f}")
