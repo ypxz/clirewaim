@@ -215,3 +215,47 @@ class BacktestTests(unittest.TestCase):
         from ultraanalyse import backtest
 
         self.assertIsNone(backtest.score_game(self._game(), "us", {}))
+
+    def test_a_higher_limit_may_meet_an_overcharge_nobody_paid(self) -> None:
+        from ultraanalyse.counterfactual import reviewer_cost
+
+        game = self._game()
+        item = dict(game["items"][0], b=85.0)
+        item["teams"]["hidden"] = {
+            "a": None,
+            "a_kind": "unknown",
+            "fair": False,
+            "b_lo": 95.0,
+        }
+        # The unseen Charge is above the Fair Value floor 90, our Limit 85 and rival's 100.
+        self.assertEqual(reviewer_cost(item, "us", 100.0), (80.0, 80.0))
+        self.assertEqual(reviewer_cost(item, "us", 150.0), (80.0, 80.0 + 150.0))
+
+    def test_rejecting_a_charge_of_unknown_fairness_costs_nothing_or_the_penalty(
+        self,
+    ) -> None:
+        from ultraanalyse.counterfactual import reviewer_cost
+
+        item = self._game()["items"][0]
+        item["teams"]["rival"] = dict(item["teams"]["rival"], fair=None)
+        self.assertEqual(reviewer_cost(item, "us", 80.0), (80.0, 80.0))
+        self.assertEqual(reviewer_cost(item, "us", 79.0), (0.0, 120.0))
+
+    def test_the_named_log_is_read_and_per_game_logs_beside_it_are_not(self) -> None:
+        from ultraanalyse import backtest
+
+        def post(charge: float) -> str:
+            return (
+                "POST UPDATE\ngame: 1\nsequence: 1\n"
+                f"|| 1 | {charge} | 85.0\n"
+                "Posted 1 Line Items for Game 1 (sequence=1 reason=final).\n"
+            )
+
+        with tempfile.TemporaryDirectory() as folder:
+            var = Path(folder)
+            (var / "run_logs" / "runner").mkdir(parents=True)
+            (var / "run_logs" / "runner" / "game_001_live.log").write_text(post(70.0))
+            (var / "replay.log").write_text(post(90.0))
+            dataset = {"us": "us", "games": [self._game()]}
+            rows = backtest.score_run(dataset, var / "replay.log")
+        self.assertEqual((rows[0]["low"], rows[0]["high"]), (10.0, 10.0))

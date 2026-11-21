@@ -65,10 +65,15 @@ after the fact. Replay the Cases without posting, in a second copy of the repo (
 writes to `var/`, and the live runner must keep its own):
 
 ```bash
-python main.py --retry-dry 2>&1 | tee var/runner.log      # in the copy, with the change applied
-python -m ultraanalyse.backtest --var /path/to/copy/var    # here
+python main.py --retry-dry 2>&1 | tee replay.log              # in the copy, with the change applied
+python -m ultraanalyse.backtest --log /path/to/copy/replay.log # here
 ```
 
+Only that file is read, so logs of the live run left in the copy cannot be scored by mistake.
 It prints the replay's net as a range next to what was played, for all, odd and even Games.
 Run the unchanged pipeline once first: two model reads of one Case differ, and that
 difference is the noise a change has to beat.
+
+The repo's own harness, `backtesting/`, cannot read this tournament's record yet: its
+reconstruction takes the amount on a rejected fair Charge for the Charge, where the row now
+carries 1.5 x the Charge, and `sync` stops on an invalid Fair Value interval.

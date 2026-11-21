@@ -55,12 +55,18 @@ def _run_log_texts(var: Path, game_id: int) -> tuple[list[str], bool]:
     return ([combined] if combined else []), True
 
 
-def read_run_log(var: Path, game_id: int) -> dict:
-    """The posts of one Game in order, and the values standing after the last one that landed."""
+def read_run_log(var: Path, game_id: int, log: Path | None = None) -> dict:
+    """The posts of one Game in order, and the values standing after the last one that landed.
+
+    `log` names one combined log to read in place of whatever `var` holds.
+    """
     posts: list[dict] = []
     flagged: set[int] = set()
     warnings: list[str] = []
-    texts, combined = _run_log_texts(var, game_id)
+    if log is None:
+        texts, combined = _run_log_texts(var, game_id)
+    else:
+        texts, combined = [_combined_log(log)], True
     for text in texts:
         block: dict | None = None
         for raw in _ANSI.sub("", text).splitlines():

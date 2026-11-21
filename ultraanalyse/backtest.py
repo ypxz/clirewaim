@@ -5,16 +5,17 @@ on the same Case has a net that can be computed after the fact. Replay the Cases
 pipeline without posting, in a second copy of the repo so the live runner's `var/` is not
 overwritten:
 
-    python main.py --retry-dry 2>&1 | tee var/runner.log
+    python main.py --retry-dry 2>&1 | tee replay.log
 
-then point this at that copy's `var/`:
+then point this at that file, and at nothing else the copy holds:
 
-    python -m ultraanalyse.backtest --var /path/to/copy/var
+    python -m ultraanalyse.backtest --log /path/to/copy/replay.log
 
 Two limits. A Charge above the recovered Fair Value bracket's lower end may or may not have
-been fair, and an Overcharge paid at the Cap hides the rival's Charge; both give a range, and
-a result is only a gain when the whole range is. And a replay is one more model read of the
-same Case: run the unchanged pipeline first to see how much two runs differ by themselves.
+been fair, and a higher Limit may or may not have met a rival Overcharge the record never
+shows; both give a range, and a result is only a gain when the whole range is. And a replay
+is one more model read of the same Case: run the unchanged pipeline first to see how much
+two runs differ by themselves.
 """
 
 from __future__ import annotations
@@ -59,12 +60,15 @@ def score_game(
     }
 
 
-def score_run(dataset: dict, var: Path) -> list[dict]:
+def score_run(dataset: dict, log: Path) -> list[dict]:
+    """Score every Game `log` holds a landed post for; it is read as one combined log."""
     rows = []
     for game in dataset["games"]:
         final = {
             int(index): (float(pair[0]), float(pair[1]))
-            for index, pair in logs.read_run_log(var, game["id"])["final"].items()
+            for index, pair in logs.read_run_log(log.parent, game["id"], log)[
+                "final"
+            ].items()
         }
         row = score_game(game, dataset["us"], final)
         if row:
@@ -83,13 +87,13 @@ def report(rows: list[dict], label: str) -> None:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     parser.add_argument(
-        "--var", type=Path, required=True, help="var/ directory of the replay"
+        "--log", type=Path, required=True, help="output of the dry replay"
     )
     parser.add_argument("--per-game", action="store_true", help="also print every Game")
     args = parser.parse_args()
-    rows = score_run(json.loads(build.DATASET.read_text()), args.var)
+    rows = score_run(json.loads(build.DATASET.read_text()), args.log)
     if not rows:
-        print(f"No replayed Game found in {args.var}.")
+        print(f"No replayed Game found in {args.log}.")
         return
     if args.per_game:
         for row in rows:
