@@ -170,9 +170,13 @@ def invert_item(
         fair_paid = [
             r["amount"]
             for r in reviewed.get(team, [])
-            if r["accepted"]
-            and r["amount"] > 0
-            and charge[r["issuer"]]["fair"] is not False
+            if r["accepted"] and r["amount"] > 0 and charge[r["issuer"]]["fair"] is True
+        ]
+        # Accepted by every Reviewer and above every Charge proven fair: the record cannot say.
+        unclear_paid = [
+            r["amount"]
+            for r in reviewed.get(team, [])
+            if r["accepted"] and r["amount"] > 0 and charge[r["issuer"]]["fair"] is None
         ]
         rejected_income = [
             r["amount"]
@@ -199,6 +203,8 @@ def invert_item(
             "overpaid_cost": _round(sum(overpaid)),
             "fair_paid_n": len(fair_paid),
             "fair_paid_cost": _round(sum(fair_paid)),
+            "unclear_paid_n": len(unclear_paid),
+            "unclear_paid_cost": _round(sum(unclear_paid)),
         }
 
     return {

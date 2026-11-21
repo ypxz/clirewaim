@@ -161,6 +161,8 @@ def build(var: Path, us: str) -> dict:
                 "overpaid_cost": mine["overpaid_cost"],
                 "fair_paid_n": mine["fair_paid_n"],
                 "fair_paid_cost": mine["fair_paid_cost"],
+                "unclear_paid_n": mine["unclear_paid_n"],
+                "unclear_paid_cost": mine["unclear_paid_cost"],
                 "teams": public["teams"],
             }
             item["a_ratio"] = _ratio(item["a"], t_point)

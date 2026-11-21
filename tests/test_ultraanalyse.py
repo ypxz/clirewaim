@@ -99,6 +99,15 @@ class InvertItemTests(unittest.TestCase):
         rows += [row("D", "X", True, 450.0), row("D", "Y", False, 0.0)]
         self.assertIsNone(inversion.invert_item(rows)["cap"])
 
+    def test_payment_of_undetermined_fairness_is_not_counted_as_fair(self):
+        # D charges 90 and everybody accepts: above the largest Charge proven fair (80), no ceiling.
+        rows = self.rows + [row("D", "A", True, 90.0), row("D", "B", True, 90.0)]
+        item = inversion.invert_item(rows)
+        self.assertIsNone(item["teams"]["D"]["fair"])
+        self.assertEqual(item["teams"]["A"]["fair_paid_n"], 0)
+        self.assertEqual(item["teams"]["A"]["unclear_paid_cost"], 90.0)
+        self.assertEqual(item["teams"]["B"]["fair_paid_cost"], 80.0)
+
     def test_hindsight(self):
         item = inversion.invert_item(self.rows)
         result = inversion.hindsight(item, "C")

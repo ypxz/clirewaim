@@ -213,7 +213,7 @@ function renderOverview() {
   const penalty = sum(ITEMS, (i) => i.penalty), overpaid = sum(ITEMS, (i) => i.overpaid_cost), gap = sum(ITEMS, (i) => i.issuer_gap);
   const fairIncome = sum(ITEMS.filter((i) => i.our_fair !== false), (i) => i.income), rejectedIncome = sum(ITEMS, (i) => i.rejected_income);
   const overIncome = sum(ITEMS.filter((i) => i.our_fair === false), (i) => i.income);
-  const fairPaid = sum(ITEMS, (i) => i.fair_paid_cost), wrongful = sum(ITEMS, (i) => i.wrongful_cost);
+  const fairPaid = sum(ITEMS, (i) => i.fair_paid_cost), wrongful = sum(ITEMS, (i) => i.wrongful_cost), unclearPaid = sum(ITEMS, (i) => i.unclear_paid_cost);
   const kpi = (label, value, hint) => `<div class="kpi"><div class="label">${label}</div><div class="value">${value}</div><div class="hint">${hint}</div></div>`;
   const cum = (team) => { let s = 0; return D.games.map((g) => (s += g.team_net[team] || 0)); };
   const rivals = D.profiles.filter((p) => p.team !== US).slice(0, 5).map((p, k) => ({ name: p.team, values: cum(p.team), color: PALETTE[k + 1] }));
@@ -239,6 +239,7 @@ function renderOverview() {
         <tr><td>Fair claims we accepted (1×)</td><td class="num">${big(fairPaid)}</td></tr>
         <tr><td>Fair claims we rejected (1.5×)</td><td class="num">${big(wrongful)}</td></tr>
         <tr><td>Overcharges we accepted</td><td class="num">${big(overpaid)}</td></tr>
+        <tr><td title="Every Reviewer accepted the Charge and it sits above every Charge proven fair, so the record cannot say">Accepted, fairness not determinable</td><td class="num">${big(unclearPaid)}</td></tr>
       </table></div></div>
       <div><h2>Standings</h2><div class="panel" id="standings"></div></div>
     </div>
@@ -301,7 +302,7 @@ function itemDetail(i) {
       <span>Evidence: <b>${esc(i.channels.join(" + ") || "none logged")}</b></span><span>Rule: <b>${esc(i.rule || "–")}</b></span>
       <span>Band width σ: <b>${i.sigma ?? "–"}</b></span><span>Estimate / Fair Value: <b>${ratio(i.estimate_ratio)}</b></span>
       <span>Category: <b>${esc(i.category)}</b></span>${i.cap != null ? `<span>Cap seen: <b>${n2.format(i.cap)}</b></span>` : ""}
-      <span>As Reviewer: <b>${i.fair_paid_n}</b> fair accepted, <b>${i.wrongful_n}</b> fair rejected, <b>${i.overpaid_n}</b> Overcharges accepted</span>
+      <span>As Reviewer: <b>${i.fair_paid_n}</b> fair accepted, <b>${i.wrongful_n}</b> fair rejected, <b>${i.overpaid_n}</b> Overcharges accepted${i.unclear_paid_n ? `, <b>${i.unclear_paid_n}</b> accepted with fairness unknown` : ""}</span>
       <span>Income if we had charged ${eur(i.t_lo)}: <b>${big(i.issuer_benchmark)}</b></span>
     </div>${draws}<div id="${id}"></div>`;
 }
