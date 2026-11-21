@@ -66,7 +66,7 @@ def issuer_income(item: dict, us: str, charge: float) -> tuple[float, float]:
         )
         if surely_fair:
             low, high = low + fair_low, high + fair_high
-        elif surely_over or item["t_lo"] == 0:
+        elif surely_over:
             low, high = low + over_low, high + over_high
         else:
             low, high = low + min(fair_low, over_low), high + max(fair_high, over_high)
