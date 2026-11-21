@@ -5,11 +5,11 @@ on the same Case has a net that can be computed after the fact. Replay the Cases
 pipeline without posting, in a second copy of the repo so the live runner's `var/` is not
 overwritten:
 
-    python main.py --retry-dry 2>&1 | tee replay.log
+    python main.py --retry-dry 2>&1 | tee var/replay.log
 
 then point this at that file, and at nothing else the copy holds:
 
-    python -m ultraanalyse.backtest --log /path/to/copy/replay.log
+    python -m ultraanalyse.backtest --log /path/to/copy/var/replay.log
 
 Two limits. A Charge above the recovered Fair Value bracket's lower end may or may not have
 been fair, and a higher Limit may or may not have met a rival Overcharge the record never

@@ -65,11 +65,12 @@ after the fact. Replay the Cases without posting, in a second copy of the repo (
 writes to `var/`, and the live runner must keep its own):
 
 ```bash
-python main.py --retry-dry 2>&1 | tee replay.log              # in the copy, with the change applied
-python -m ultraanalyse.backtest --log /path/to/copy/replay.log # here
+python main.py --retry-dry 2>&1 | tee var/replay.log              # in the copy, with the change applied
+python -m ultraanalyse.backtest --log /path/to/copy/var/replay.log # here
 ```
 
 Only that file is read, so logs of the live run left in the copy cannot be scored by mistake.
+The log names the Case's Line Items; `var/` is ignored by git, so keep it there.
 It prints the replay's net as a range next to what was played, for all, odd and even Games.
 Run the unchanged pipeline once first: two model reads of one Case differ, and that
 difference is the noise a change has to beat.
