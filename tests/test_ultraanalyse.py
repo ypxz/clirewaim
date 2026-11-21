@@ -141,6 +141,13 @@ class ModelReplyTests(unittest.TestCase):
         self.assertEqual(replies["items"][2][0]["coverage"], 0.9)
         self.assertEqual(replies["items"][2][0]["clause"], "c")
 
+    def test_clause_given_as_a_list_is_joined(self):
+        replies = self._replies(
+            '{"items": [{"line_item": 1, "clause": ["3.1 a", " 3.2 b "]}, {"line_item": 2, "clause": 7}]}'
+        )
+        self.assertEqual(replies["items"][1][0]["clause"], "3.1 a; 3.2 b")
+        self.assertEqual(replies["items"][2][0]["clause"], "7")
+
 
 class TopicTests(unittest.TestCase):
     def test_opening_decides_the_peril(self):

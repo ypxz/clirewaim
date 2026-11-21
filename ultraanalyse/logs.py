@@ -23,6 +23,13 @@ _JSON_OBJECT = re.compile(r"\{.*\}", re.DOTALL)
 _STAMP = re.compile(r"^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}),\d+ (WARNING|ERROR) (.*)$")
 
 
+def _text(value: object) -> str:
+    """A clause as one string; the model sometimes returns a list of clauses."""
+    if isinstance(value, (list, tuple)):
+        return "; ".join(_text(part) for part in value if part)
+    return str(value).strip() if value else ""
+
+
 def _load_json(path: Path) -> dict | None:
     try:
         return json.loads(path.read_text(encoding="utf-8"))
@@ -174,7 +181,7 @@ def read_model_replies(var: Path, game_id: int) -> dict:
                     "low": item.get("price_low"),
                     "median": item.get("price_median"),
                     "high": item.get("price_high"),
-                    "clause": (item.get("clause") or "").strip(),
+                    "clause": _text(item.get("clause")),
                 }
             )
     draws.sort(key=lambda d: d["at"] or 0)
