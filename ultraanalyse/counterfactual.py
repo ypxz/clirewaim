@@ -41,8 +41,9 @@ def reviewer_cost(item: dict, us: str, limit: float) -> tuple[float, float]:
     - an Overcharge paid at the Cap shows the payout, not the Charge, so a Limit at or
       above the payout may or may not have accepted it;
     - an Overcharge nobody paid is unseen, known only to lie above the Fair Value and every
-      Limit, so a Limit above that floor may have accepted it, for at most the Limit or the
-      Cap where the record shows it;
+      Limit, so a Limit above that floor may have accepted it, for at most the Limit. The
+      Cap is not used to lower that: the dataset's Cap is inferred from equal payouts and
+      may be a coincidence of equal Charges;
     - a Charge every Reviewer accepted, above every Charge proven fair, may be fair or not,
       so rejecting it costs between nothing and the penalty.
     """
@@ -53,7 +54,7 @@ def reviewer_cost(item: dict, us: str, limit: float) -> tuple[float, float]:
         charge = rival["a"]
         if charge is None:
             if limit > _unseen_floor(item, us, name):
-                high += min(limit, item["cap"] or limit)
+                high += limit
         elif not charge:
             continue
         elif rival["fair"] is False:
