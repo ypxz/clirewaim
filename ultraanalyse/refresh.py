@@ -20,7 +20,7 @@ from ultraanalyse import build, fetch, render
 
 PRIVATE_DIR = build.ROOT / "data" / "private"
 MANIFEST = PRIVATE_DIR / "drive_manifest.json"
-SKIP_NAMES = {"runner.log"}
+GROWING_NAMES = {"runner.log"}  # the supervisor appends to it for the whole tournament
 GAME_DONE = "event=game status=completed"
 RECENT_GAMES = 5
 _GAME_NUMBER = re.compile(r"game_(\d+)")
@@ -53,12 +53,14 @@ def sync_drive(url: str, full: bool = False) -> int:
     downloaded = 0
     for key, entry in keys.items():
         target = PRIVATE_DIR / key
-        if target.name in SKIP_NAMES:
-            continue
         # Drive keeps a file's id when it is overwritten in place, and logs of the Games just
         # played are still being written, so those are always fetched again.
         game = _game_of(key)
-        recent = game is not None and game > newest - RECENT_GAMES
+        recent = (
+            target.name in GROWING_NAMES
+            or game is not None
+            and game > newest - RECENT_GAMES
+        )
         current = (
             target.exists() and known.get(key) == entry.id and not _incomplete(target)
         )
