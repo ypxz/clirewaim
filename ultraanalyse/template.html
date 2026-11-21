@@ -285,7 +285,7 @@ function itemCols(withGame) {
     { h: "Cost", v: (i) => i.cost, f: (i) => big(i.cost), num: true },
     { h: "Net", v: (i) => i.net, f: (i) => signed(i.net), num: true },
     { h: "Avoidable", v: (i) => i.reviewer_regret + i.issuer_gap, f: (i) => cost(i.reviewer_regret + i.issuer_gap), num: true, title: "Penalty + accepted Overcharges + Issuer income left on the table" },
-    { h: "Fraud gate", v: (i) => (i.fraud_lock ? 2 : i.fraud_flag ? 1 : 0), f: (i) => (i.fraud_lock ? '<span class="tag warn">locked</span>' : i.fraud_flag ? '<span class="tag">flagged</span>' : '<span class="dim">no</span>'), hideInLeaks: true },
+    { h: "Fraud gate", v: (i) => (i.fraud_lock ? 2 : i.fraud_flag ? 1 : 0), f: (i) => (i.fraud_lock ? '<span class="tag warn">locked</span>' : i.fraud_flag ? '<span class="tag">flagged</span>' : `<span class="dim">${i.logged ? "no" : "not logged"}</span>`), hideInLeaks: true },
     { h: "Verdict", v: (i) => i.tags.length, f: (i) => tags(i.tags), wrap: true },
   ];
   if (withGame) cols.unshift({ h: "Game", v: (i) => i.game, num: true }, { h: "Topic", v: (i) => i.topic, f: (i) => esc(i.topic) });
@@ -388,7 +388,7 @@ const GROUPS = {
   "Size of the Fair Value": (i) => [i.t_lo > 0 ? bucket(i.t, SIZE) : "0 · no fair Charge seen"],
   "Was our Charge fair?": (i) => [i.our_fair === true ? "fair" : i.our_fair === false ? "Overcharge" : "unknown (everyone accepted)"],
   "Verdict": (i) => (i.tags.length ? i.tags : ["clean"]),
-  "Fraud gate": (i) => [i.fraud_lock ? "locked (Limit forced to 0)" : "not locked"],
+  "Fraud gate": (i) => [!i.logged ? "not logged" : i.fraud_lock ? "locked (Limit forced to 0)" : "not locked"],
   "Wording seen in an earlier Game": (i) => [i.seen_before == null ? "not logged" : i.seen_before ? "seen before" : "first time"],
   "Ten-Game block": (i) => { const lo = Math.floor((i.game - 1) / 10) * 10 + 1; return [`Games ${String(lo).padStart(3, "0")}–${String(lo + 9).padStart(3, "0")}`]; },
   "Game": (i) => ["Game " + String(i.game).padStart(3, "0")],
