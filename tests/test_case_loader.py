@@ -6,6 +6,47 @@ from src.data.case_loader import find_image_paths, parse_invoice_text
 from src.data.models import LineItem
 
 
+class ReleasedKeyTests(unittest.IsolatedAsyncioTestCase):
+    async def test_a_server_error_on_the_key_request_is_retried(self) -> None:
+        import asyncio
+        from unittest.mock import patch
+
+        from src.api import APIError
+        from src.data import case_loader
+
+        answers: list[object] = [APIError(503, ""), OSError("connection reset"), "the-key"]
+
+        def get_key(game_id: int, timeout: float) -> str:
+            answer = answers.pop(0)
+            if isinstance(answer, BaseException):
+                raise answer
+            return str(answer)
+
+        async def no_sleep(_seconds: float) -> None:
+            return None
+
+        deadline = asyncio.get_running_loop().time() + 5.0
+        with patch.object(case_loader, "get_decryption_key", get_key), patch.object(
+            case_loader.asyncio, "sleep", no_sleep
+        ):
+            self.assertEqual(await case_loader.get_released_key(48, deadline), "the-key")
+
+    async def test_a_refused_key_request_is_not_retried(self) -> None:
+        import asyncio
+        from unittest.mock import patch
+
+        from src.api import APIError
+        from src.data import case_loader
+
+        def get_key(game_id: int, timeout: float) -> str:
+            raise APIError(401, "bad key")
+
+        deadline = asyncio.get_running_loop().time() + 5.0
+        with patch.object(case_loader, "get_decryption_key", get_key):
+            with self.assertRaises(APIError):
+                await case_loader.get_released_key(48, deadline)
+
+
 class CaseLoaderTests(unittest.TestCase):
     def test_discovers_all_supported_case_images(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

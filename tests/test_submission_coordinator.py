@@ -2,7 +2,9 @@ import asyncio
 import re
 import threading
 import unittest
+from unittest.mock import patch
 
+from src.api import APIError
 from src.data.models import ItemPrice
 from src.runtime.submission_coordinator import SubmissionCoordinator, format_submission_update
 
@@ -200,6 +202,70 @@ class SubmissionCoordinatorTests(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual([call[0]["charge_price"] for call in calls], [100.0, 120.0, 100.0])
 
+
+    async def test_a_server_error_is_retried_until_the_post_lands(self) -> None:
+        # Game 48: the server answered 503 to the blind floor at T+0.06 s, it was tried
+        # once, and the default submission stood.
+        calls: list[int] = []
+
+        def submitter(game_id: int, submissions: list[dict[str, float | int]], timeout: float) -> None:
+            calls.append(len(submissions))
+            if len(calls) < 3:
+                raise APIError(503, "")
+
+        coordinator = SubmissionCoordinator(
+            game_id=1,
+            deadline=asyncio.get_running_loop().time() + 2.0,
+            submitter=submitter,
+        )
+        await coordinator.start()
+        with patch("src.runtime.submission_coordinator.RETRY_SECONDS", 0.01):
+            coordinator.publish((ItemPrice(1, 300.0, 35.0),))
+            await asyncio.wait_for(coordinator.wait_until_idle(), timeout=1.0)
+        await coordinator.close()
+
+        self.assertEqual(calls, [1, 1, 1])
+
+    async def test_a_rejected_payload_is_not_retried(self) -> None:
+        calls: list[int] = []
+
+        def submitter(game_id: int, submissions: list[dict[str, float | int]], timeout: float) -> None:
+            calls.append(len(submissions))
+            raise APIError(422, "bad payload")
+
+        coordinator = SubmissionCoordinator(
+            game_id=1,
+            deadline=asyncio.get_running_loop().time() + 2.0,
+            submitter=submitter,
+        )
+        await coordinator.start()
+        with patch("src.runtime.submission_coordinator.RETRY_SECONDS", 0.01):
+            coordinator.publish((ItemPrice(1, 300.0, 35.0),))
+            await asyncio.wait_for(coordinator.wait_until_idle(), timeout=1.0)
+        await coordinator.close()
+
+        self.assertEqual(calls, [1])
+
+    async def test_retrying_stops_at_the_deadline(self) -> None:
+        calls: list[int] = []
+
+        def submitter(game_id: int, submissions: list[dict[str, float | int]], timeout: float) -> None:
+            calls.append(len(submissions))
+            raise APIError(503, "")
+
+        coordinator = SubmissionCoordinator(
+            game_id=1,
+            deadline=asyncio.get_running_loop().time() + 0.2,
+            submitter=submitter,
+        )
+        await coordinator.start()
+        with patch("src.runtime.submission_coordinator.RETRY_SECONDS", 0.05):
+            coordinator.publish((ItemPrice(1, 300.0, 35.0),))
+            await asyncio.wait_for(coordinator.wait_until_idle(), timeout=1.0)
+        await coordinator.close()
+
+        self.assertGreater(len(calls), 1)
+        self.assertLess(len(calls), 10)
 
     async def test_posts_a_complete_snapshot_in_one_batch(self) -> None:
         calls: list[list[dict[str, float | int]]] = []

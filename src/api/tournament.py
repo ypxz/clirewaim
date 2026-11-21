@@ -58,6 +58,18 @@ class APIError(RuntimeError):
         self.message = message
 
 
+def is_transient(error: BaseException) -> bool:
+    """True for a failure worth retrying inside the same Game: the server or the network.
+
+    Game 48 of the second tournament: the server answered 503 to the key request and to the
+    blind-floor submission at T+0.06 s. Each was tried once, nothing was submitted, and the
+    default submission cost 23,594 in wrongful rejections.
+    """
+    if isinstance(error, APIError):
+        return error.status_code == 429 or error.status_code >= 500
+    return isinstance(error, (OSError, TimeoutError))
+
+
 def _get_urlopen():
     """Retrieve urlopen function, supporting monkeypatching on src.api."""
     try:

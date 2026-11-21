@@ -7,7 +7,7 @@ import subprocess
 from dataclasses import replace
 from pathlib import Path
 
-from src.api import APIError, get_decryption_key
+from src.api import APIError, get_decryption_key, is_transient
 from src.data.models import CaseData, LineItem
 
 logger = logging.getLogger(__name__)
@@ -65,9 +65,12 @@ async def get_released_key(game_id: int, deadline: float) -> str:
                 game_id,
                 timeout=remaining,
             )
-        except APIError as error:
-            if error.status_code != 403:
+        except Exception as error:
+            not_released_yet = isinstance(error, APIError) and error.status_code == 403
+            if not not_released_yet and not is_transient(error):
                 raise
+            if not not_released_yet:
+                logger.warning("Key request for Game %s failed: %s - retrying.", game_id, error)
             await asyncio.sleep(min(0.5, max(deadline - loop.time(), 0.0)))
     raise TimeoutError(f"Game {game_id} did not release its decryption key in time.")
 
