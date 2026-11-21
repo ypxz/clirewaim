@@ -23,6 +23,7 @@ MANIFEST = PRIVATE_DIR / "drive_manifest.json"
 GROWING_NAMES = {"runner.log"}  # the supervisor appends to it for the whole tournament
 GAME_DONE = "event=game status=completed"
 RECENT_GAMES = 5
+LAST_GAME = 1000
 _GAME_NUMBER = re.compile(r"game_(\d+)")
 
 
@@ -35,7 +36,12 @@ def _incomplete(path: Path) -> bool:
 
 def _game_of(key: str) -> int | None:
     found = _GAME_NUMBER.search(key)
-    return int(found.group(1)) if found and "cases" not in Path(key).parts else None
+    if not found or "cases" in Path(key).parts:
+        return None
+    game = int(found.group(1))
+    return (
+        game if game <= LAST_GAME else None
+    )  # the test suite leaves a game_9042 behind
 
 
 def sync_drive(url: str, full: bool = False) -> int:
