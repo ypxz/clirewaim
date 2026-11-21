@@ -314,7 +314,16 @@ class SubmissionCoordinator:
                     reason=reason,
                 )
             if retry and not self._closed and self._pending_signature == signature:
-                await asyncio.sleep(min(RETRY_SECONDS, max(self._deadline - loop.time(), 0.0)))
+                # Half of what is left at most, so the last attempt is never spent sleeping
+                # up to the deadline. `publish` and `close` set `_changed` and end the pause
+                # at once: newer prices do not wait behind a retry of older ones.
+                # Never under a tenth of a second, or the last moments become a burst.
+                remaining = max(self._deadline - loop.time(), 0.0)
+                pause = max(min(RETRY_SECONDS, remaining / 2), min(RETRY_SECONDS, 0.1))
+                try:
+                    await asyncio.wait_for(self._changed.wait(), timeout=pause)
+                except asyncio.TimeoutError:
+                    pass
             if not self._closed and (
                 retry or self._pending_signature != signature or self._pending_force
             ):

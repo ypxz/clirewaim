@@ -267,6 +267,32 @@ class SubmissionCoordinatorTests(unittest.IsolatedAsyncioTestCase):
         self.assertGreater(len(calls), 1)
         self.assertLess(len(calls), 10)
 
+    async def test_newer_prices_end_the_pause_before_a_retry(self) -> None:
+        calls: list[float] = []
+
+        def submitter(game_id: int, submissions: list[dict[str, float | int]], timeout: float) -> None:
+            calls.append(float(submissions[0]["charge_price"]))
+            if len(calls) == 1:
+                raise APIError(503, "")
+
+        coordinator = SubmissionCoordinator(
+            game_id=1,
+            deadline=asyncio.get_running_loop().time() + 1.0,
+            submitter=submitter,
+        )
+        await coordinator.start()
+        # A pause far longer than the test: only `publish` can end it in time.
+        with patch("src.runtime.submission_coordinator.RETRY_SECONDS", 30.0):
+            coordinator.publish((ItemPrice(1, 300.0, 35.0),))
+            while not calls:
+                await asyncio.sleep(0.005)
+            await asyncio.sleep(0.02)
+            coordinator.publish((ItemPrice(1, 400.0, 35.0),))
+            await asyncio.wait_for(coordinator.wait_until_idle(), timeout=0.3)
+        await coordinator.close()
+
+        self.assertEqual(calls, [300.0, 400.0])
+
     async def test_posts_a_complete_snapshot_in_one_batch(self) -> None:
         calls: list[list[dict[str, float | int]]] = []
 
