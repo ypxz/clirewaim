@@ -23,21 +23,25 @@ from ultraanalyse import build
 COVERAGE_FLOOR = 2.0 / 3.0
 
 
-def reviewer_cost(item: dict, us: str, limit: float) -> float:
-    """What a Limit would have cost us on this Line Item."""
-    cost = 0.0
+def reviewer_cost(item: dict, us: str, limit: float) -> tuple[float, float]:
+    """(lowest, highest) cost a Limit would have had on this Line Item.
+
+    The two differ only on an Overcharge paid at the Cap: the record shows the payout, not
+    the Charge, so a Limit at or above the payout may or may not have accepted it.
+    """
+    low = high = 0.0
     for name, rival in item["teams"].items():
         charge = rival["a"]
         if name == us or not charge:
             continue
         if rival["fair"] is False:
-            # Paid at the Cap, the true Charge is unseen and at least 4t: no Limit rule here
-            # reaches it, so it stays rejected.
-            accepted = limit >= charge and rival["a_kind"] != "at-least"
-            cost += charge if accepted else 0.0
+            paid = charge if limit >= charge else 0.0
+            high += paid
+            low += 0.0 if rival["a_kind"] == "at-least" else paid
         else:  # proven fair, or undetermined: counted as fair so a lower Limit is not flattered
-            cost += charge if limit >= charge else 1.5 * charge
-    return cost
+            paid = charge if limit >= charge else 1.5 * charge
+            low, high = low + paid, high + paid
+    return low, high
 
 
 def issuer_income(item: dict, us: str, charge: float) -> tuple[float, float]:
@@ -114,12 +118,14 @@ def report(items: list[dict], us: str, label: str) -> None:
     print(f"\n== {label}: {len(items)} Line Items")
     if not items:
         return
-    base = sum(reviewer_cost(i, us, i["b"]) for i in items)
+    base, _ = map(sum, zip(*(reviewer_cost(i, us, i["b"]) for i in items)))
     actual = sum(i["cost"] for i in items)
     print(f"Reviewer cost as played: replay {base:,.0f}, record {actual:,.0f}")
     for name, rule in limit_rules().items():
-        cost = sum(reviewer_cost(i, us, rule(i)) for i in items)
-        print(f"  {name:55s} cost {cost:10,.0f}  saves {base - cost:+10,.0f}")
+        low, high = map(sum, zip(*(reviewer_cost(i, us, rule(i)) for i in items)))
+        print(
+            f"  {name:55s} cost {low:10,.0f}..{high:10,.0f}  saves {base - high:+10,.0f}..{base - low:+10,.0f}"
+        )
     low0, high0 = map(sum, zip(*(issuer_income(i, us, i["a"]) for i in items)))
     print(
         f"Issuer income as played: replay {low0:,.0f}..{high0:,.0f}, record {sum(i['income'] for i in items):,.0f}"
