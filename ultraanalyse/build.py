@@ -115,6 +115,7 @@ def build(var: Path, us: str) -> dict:
                 "name": " ".join(
                     (evidence.get("name") or f"Line Item {index}").split()
                 ),
+                "named": bool(evidence.get("name")),
                 "category": topics.item_category(evidence.get("name") or ""),
                 "a": mine["a"],
                 "b": mine["b"] if mine["b"] is not None else None,

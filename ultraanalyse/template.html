@@ -100,7 +100,7 @@ const sum = (xs, f) => xs.reduce((s, x) => s + (f(x) || 0), 0);
 const median = (xs) => { const s = xs.filter((x) => x != null).sort((a, b) => a - b); return s.length ? (s.length % 2 ? s[(s.length - 1) / 2] : (s[s.length / 2 - 1] + s[s.length / 2]) / 2) : null; };
 const ITEMS = D.games.flatMap((g) => g.items.map((i) => Object.assign(i, { game: g.id, topic: g.topic })));
 const seenNames = new Set();
-ITEMS.forEach((i) => { i.seen_before = seenNames.has(i.name); seenNames.add(i.name); });
+ITEMS.forEach((i) => { i.seen_before = i.named ? seenNames.has(i.name) : null; if (i.named) seenNames.add(i.name); });
 const rmsLog = (xs) => { const v = xs.filter((x) => x > 0).map((x) => Math.log(x) ** 2); return v.length ? Math.sqrt(v.reduce((a, b) => a + b, 0) / v.length) : null; };
 const groupNet = (key) => { const m = new Map(); ITEMS.forEach((i) => m.set(key(i), (m.get(key(i)) || 0) + i.net)); return [...m].sort((a, b) => b[1] - a[1]); };
 function barList(rows, by) {
@@ -389,7 +389,7 @@ const GROUPS = {
   "Was our Charge fair?": (i) => [i.our_fair === true ? "fair" : i.our_fair === false ? "Overcharge" : "unknown (everyone accepted)"],
   "Verdict": (i) => (i.tags.length ? i.tags : ["clean"]),
   "Fraud gate": (i) => [i.fraud_lock ? "locked (Limit forced to 0)" : "not locked"],
-  "Wording seen in an earlier Game": (i) => [i.seen_before ? "seen before" : "first time"],
+  "Wording seen in an earlier Game": (i) => [i.seen_before == null ? "not logged" : i.seen_before ? "seen before" : "first time"],
   "Ten-Game block": (i) => { const lo = Math.floor((i.game - 1) / 10) * 10 + 1; return [`Games ${String(lo).padStart(3, "0")}–${String(lo + 9).padStart(3, "0")}`]; },
   "Game": (i) => ["Game " + String(i.game).padStart(3, "0")],
 };
