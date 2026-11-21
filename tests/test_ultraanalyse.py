@@ -75,16 +75,29 @@ class InvertItemTests(unittest.TestCase):
         self.assertEqual(inversion.fair_value_point(100.0, 110.0), 104.88)
 
     def test_shared_payout_is_read_as_the_cap(self):
-        rows = [
-            row("A", "C", True, 2000.0),
-            row("A", "D", False, 0.0),
-            row("B", "C", True, 2000.0),
-            row("B", "D", False, 0.0),
+        rows = [row(team, "X", True, 2000.0) for team in "ABC"] + [
+            row(team, "Y", False, 0.0) for team in "ABC"
         ]
         item = inversion.invert_item(rows)
         self.assertEqual(item["cap"], 2000.0)
         self.assertEqual(item["teams"]["A"]["a_kind"], "at-least")
         self.assertEqual(item["t_hi"], 500.0)
+
+    def test_two_equal_overcharges_are_not_a_cap(self):
+        rows = [row(team, "X", True, 300.0) for team in "AB"] + [
+            row(team, "Y", False, 0.0) for team in "AB"
+        ]
+        item = inversion.invert_item(rows)
+        self.assertIsNone(item["cap"])
+        self.assertEqual(item["t_hi"], 300.0)
+        self.assertEqual(item["teams"]["A"]["a_kind"], "exact")
+
+    def test_a_larger_payout_rules_out_the_cap(self):
+        rows = [row(team, "X", True, 300.0) for team in "ABC"] + [
+            row(team, "Y", False, 0.0) for team in "ABC"
+        ]
+        rows += [row("D", "X", True, 450.0), row("D", "Y", False, 0.0)]
+        self.assertIsNone(inversion.invert_item(rows)["cap"])
 
     def test_hindsight(self):
         item = inversion.invert_item(self.rows)

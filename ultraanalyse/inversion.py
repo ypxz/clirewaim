@@ -20,6 +20,7 @@ from statistics import median
 
 PENALTY_FACTOR = 1.5
 TIGHT_BRACKET = 1.25
+CAP_WITNESSES = 3
 
 
 def _round(value: float | None) -> float | None:
@@ -76,16 +77,24 @@ def invert_item(
     t_lo = max(fair, default=0.0)
     t_hi = min(over, default=None)
 
-    # The Cap shows itself when several Overchargers are all paid the same amount.
+    # The Cap shows itself when Overchargers are all paid the same amount. Two teams can pick
+    # the same round Charge by chance, so it takes CAP_WITNESSES of them, and nobody may have
+    # been paid more on this Line Item: the Cap is the most any accepted Charge can pay.
     capped = Counter(
-        round(r["amount"], 2)
+        round(amount, 2)
         for team, mine in issued.items()
         if charge[team]["fair"] is False
-        for r in {
-            r["amount"]: r for r in mine if r["accepted"] and r["amount"] > 0
-        }.values()
+        for amount in {r["amount"] for r in mine if r["accepted"] and r["amount"] > 0}
     )
-    cap = next((amount for amount, n in capped.most_common(1) if n >= 2), None)
+    most_paid = max((r["amount"] for r in rows if r["accepted"]), default=0.0)
+    cap = next(
+        (
+            amount
+            for amount, n in capped.most_common(1)
+            if n >= CAP_WITNESSES and amount >= most_paid - 0.01
+        ),
+        None,
+    )
     for team, (logged_charge, _) in known.items():
         paid = max(
             (r["amount"] for r in issued.get(team, []) if r["accepted"]), default=0.0
