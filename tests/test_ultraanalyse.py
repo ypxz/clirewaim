@@ -230,6 +230,9 @@ class BacktestTests(unittest.TestCase):
         # The unseen Charge is above the Fair Value floor 90, our Limit 85 and rival's 100.
         self.assertEqual(reviewer_cost(item, "us", 100.0), (80.0, 80.0))
         self.assertEqual(reviewer_cost(item, "us", 150.0), (80.0, 80.0 + 150.0))
+        self.assertEqual(
+            reviewer_cost(dict(item, cap=120.0), "us", 150.0), (80.0, 80.0 + 120.0)
+        )
 
     def test_rejecting_a_charge_of_unknown_fairness_costs_nothing_or_the_penalty(
         self,
