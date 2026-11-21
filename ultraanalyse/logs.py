@@ -19,6 +19,7 @@ _AFTER_ROW = re.compile(r"\|\|\s+(\d+)\s+\|\s+([\d.]+)\s+\|\s+([\d.]+)\s*$")
 _POSTED = re.compile(r"Posted (\d+) Line Items for Game (\d+) \(sequence=(\d+)")
 _FRAUD_ITEM = re.compile(r"event=fraud_item .*game=(\d+) line_item=(\d+) fraud=True")
 _FIELD = re.compile(r"^(game|sequence|time|source|reason|write|fraud_locks): (.*)$")
+_JSON_OBJECT = re.compile(r"\{.*\}", re.DOTALL)
 _STAMP = re.compile(r"^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}),\d+ (WARNING|ERROR) (.*)$")
 
 
@@ -154,14 +155,17 @@ def read_model_replies(var: Path, game_id: int) -> dict:
                 "at": data.get("recorded_at"),
             }
         )
+        # The runner logs the raw reply before validating it: it may be fenced or malformed.
+        found = _JSON_OBJECT.search(data.get("reply") or "")
         try:
-            reply = json.loads(data.get("reply") or "{}")
+            reply = json.loads(found.group(0)) if found else {}
         except ValueError:
             continue
-        for item in reply.get("items", []) if isinstance(reply, dict) else []:
+        entries = reply.get("items") if isinstance(reply, dict) else None
+        for item in entries if isinstance(entries, list) else []:
             try:
                 index = int(item.get("line_item"))
-            except (TypeError, ValueError):
+            except (AttributeError, TypeError, ValueError):
                 continue
             per_item.setdefault(index, []).append(
                 {

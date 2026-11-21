@@ -1,8 +1,11 @@
 """The Transaction inversion behind the ultraanalyse dashboard."""
 
+import json
+import tempfile
 import unittest
+from pathlib import Path
 
-from ultraanalyse import inversion, topics
+from ultraanalyse import inversion, logs, topics
 
 
 def row(issuer, reviewer, accepted, amount, index=1):
@@ -90,6 +93,31 @@ class InvertItemTests(unittest.TestCase):
         # Charging 80: B accepts (its Limit is at least 80), A's Limit is unknown, so 1x each.
         self.assertEqual(result["issuer_benchmark"], 160.0)
         self.assertEqual(result["issuer_gap"], 160.0)
+
+
+class ModelReplyTests(unittest.TestCase):
+    def _replies(self, *raw_replies):
+        with tempfile.TemporaryDirectory() as folder:
+            log_dir = Path(folder) / "ai_log"
+            log_dir.mkdir()
+            for number, raw in enumerate(raw_replies):
+                (log_dir / f"game_007_{number}.json").write_text(
+                    json.dumps({"draw": str(number), "reply": raw})
+                )
+            return logs.read_model_replies(Path(folder), 7)
+
+    def test_malformed_replies_do_not_stop_the_build(self):
+        replies = self._replies(
+            '{"items": null}', "not json", '{"items": ["x", {"line_item": "a"}]}', "[1]"
+        )
+        self.assertEqual(replies["items"], {})
+        self.assertEqual(len(replies["draws"]), 4)
+
+    def test_fenced_reply_is_read(self):
+        fenced = '```json\n{"items": [{"line_item": 2, "coverage_probability": 0.9, "clause": " c "}]}\n```'
+        replies = self._replies(fenced)
+        self.assertEqual(replies["items"][2][0]["coverage"], 0.9)
+        self.assertEqual(replies["items"][2][0]["clause"], "c")
 
 
 class TopicTests(unittest.TestCase):
