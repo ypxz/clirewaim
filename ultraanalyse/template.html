@@ -99,6 +99,14 @@ const pct = (v) => (v == null ? '<span class="dim">–</span>' : Math.round(v * 
 const sum = (xs, f) => xs.reduce((s, x) => s + (f(x) || 0), 0);
 const median = (xs) => { const s = xs.filter((x) => x != null).sort((a, b) => a - b); return s.length ? (s.length % 2 ? s[(s.length - 1) / 2] : (s[s.length / 2 - 1] + s[s.length / 2]) / 2) : null; };
 const ITEMS = D.games.flatMap((g) => g.items.map((i) => Object.assign(i, { game: g.id, topic: g.topic })));
+const seenNames = new Set();
+ITEMS.forEach((i) => { i.seen_before = seenNames.has(i.name); seenNames.add(i.name); });
+const rmsLog = (xs) => { const v = xs.filter((x) => x > 0).map((x) => Math.log(x) ** 2); return v.length ? Math.sqrt(v.reduce((a, b) => a + b, 0) / v.length) : null; };
+const groupNet = (key) => { const m = new Map(); ITEMS.forEach((i) => m.set(key(i), (m.get(key(i)) || 0) + i.net)); return [...m].sort((a, b) => b[1] - a[1]); };
+function barList(rows, by) {
+  const scale = Math.max(...rows.map(([, v]) => Math.abs(v)), 1);
+  return `<table>${rows.map(([name, v]) => `<tr class="click" data-by="${esc(by)}"><td>${esc(name)}</td><td class="num"><div class="bar-cell">${signed(v)}<i style="width:${(160 * Math.abs(v)) / scale}px;background:var(--${v >= 0 ? "good" : "bad"})"></i></div></td></tr>`).join("")}</table>`;
+}
 const PALETTE = ["#3b5bdb", "#e8590c", "#0ca678", "#ae3ec9", "#f59f00", "#1098ad", "#d6336c", "#74b816"];
 const BAD_TAGS = new Set(["Overcharged a covered item", "Rejected fair claims", "Paid overcharges", "Priced as uncovered, was covered", "Fallback values submitted"]);
 const WARN_TAGS = new Set(["Estimate too high", "Estimate too low", "Undercharged", "Priced as covered, no fair Charge seen", "Fraud lock"]);
@@ -230,6 +238,11 @@ function renderOverview() {
     <h2>Cumulative net</h2><div class="panel">${lineChart([{ name: US + " (us)", values: cum(US), color: PALETTE[0], bold: true }, ...rivals], D.games.map((g) => g.id))}</div>
     <h2>Our net per Game</h2><p class="note">Click a bar to open the round.</p><div class="panel" id="netbars">${barChart(D.games.map((g) => g.net), D.games.map((g) => g.id), D.games.map((g) => `Game ${g.id} · ${g.topic} · net ${n0.format(g.net)} · rank ${g.rank}/${g.n_teams}`))}</div>
     <div class="grid2">
+      <div><h2>Net by topic of the Case</h2><div class="panel" id="by-topic">${barList(groupNet((i) => i.topic), "Topic of the Case")}</div></div>
+      <div><h2>Net by Line Item category</h2><div class="panel" id="by-cat">${barList(groupNet((i) => i.category), "Line Item category")}</div></div>
+    </div>
+    <p class="note">Click a row for income, cost and avoidable loss of that grouping.</p>
+    <div class="grid2">
       <div><h2>Where the money went</h2><div class="panel"><table>
         <tr><th>Income as Issuer</th><th class="num">amount</th></tr>
         <tr><td>Fair Charges, accepted (paid 1×)</td><td class="num">${big(fairIncome - rejectedIncome)}</td></tr>
@@ -252,6 +265,7 @@ function renderOverview() {
     { h: "Costs", v: (p) => p.costs, f: (p) => big(p.costs), num: true },
   ], D.profiles, { rowClass: (p) => (p.team === US ? "us" : "") });
   table($("leaks"), itemCols(true).filter((c) => !c.hideInLeaks), leaks, { key: (i) => i.game + "/" + i.index, click: (k) => go(...k.split("/")) });
+  document.querySelectorAll("#by-topic tr, #by-cat tr").forEach((tr) => tr.onclick = () => { $("p-by").value = tr.dataset.by; $("p-by").onchange(); show("patterns"); });
   $("netbars").querySelectorAll("rect").forEach((r) => r.onclick = () => go(r.dataset.game));
 }
 
@@ -374,6 +388,9 @@ const GROUPS = {
   "Size of the Fair Value": (i) => [i.t_lo > 0 ? bucket(i.t, SIZE) : "0 · no fair Charge seen"],
   "Was our Charge fair?": (i) => [i.our_fair === true ? "fair" : i.our_fair === false ? "Overcharge" : "unknown (everyone accepted)"],
   "Verdict": (i) => (i.tags.length ? i.tags : ["clean"]),
+  "Fraud gate": (i) => [i.fraud_lock ? "locked (Limit forced to 0)" : "not locked"],
+  "Wording seen in an earlier Game": (i) => [i.seen_before ? "seen before" : "first time"],
+  "Ten-Game block": (i) => { const lo = Math.floor((i.game - 1) / 10) * 10 + 1; return [`Games ${String(lo).padStart(3, "0")}–${String(lo + 9).padStart(3, "0")}`]; },
   "Game": (i) => ["Game " + String(i.game).padStart(3, "0")],
 };
 function renderPatterns() {
@@ -389,7 +406,7 @@ function renderPatterns() {
       const covered = xs.filter((i) => i.t_lo > 0);
       return { name, n: xs.length, net: sum(xs, (i) => i.net), income: sum(xs, (i) => i.income), cost: sum(xs, (i) => i.cost), penalty: sum(xs, (i) => i.penalty), overpaid: sum(xs, (i) => i.overpaid_cost), gap: sum(xs, (i) => i.issuer_gap),
         fair: covered.length ? covered.filter((i) => i.our_fair).length / covered.length : null, nCovered: covered.length,
-        a: median(closed.map((i) => i.a_ratio)), b: median(closed.map((i) => i.b_ratio)), e: median(closed.map((i) => i.estimate_ratio)) };
+        a: median(closed.map((i) => i.a_ratio)), b: median(closed.map((i) => i.b_ratio)), e: median(closed.map((i) => i.estimate_ratio)), err: rmsLog(closed.map((i) => i.estimate_ratio)), nClosed: closed.length };
     });
     const scale = Math.max(...rows.map((r) => Math.abs(r.net)), 1);
     table($("p-table"), [
@@ -407,6 +424,7 @@ function renderPatterns() {
       { h: "a / t", v: (r) => r.a, f: (r) => ratio(r.a), num: true },
       { h: "b / t", v: (r) => r.b, f: (r) => ratio(r.b), num: true },
       { h: "Estimate / t", v: (r) => r.e, f: (r) => ratio(r.e), num: true },
+      { h: "Estimate error σ", v: (r) => r.err, f: (r) => (r.err == null ? pct(null) : `${r.err.toFixed(2)} <span class="dim">n=${r.nClosed}</span>`), num: true, title: "Root mean square of log(estimate / Fair Value) on closed brackets. 0 is perfect; the repo's bar for the estimate to earn money is about 0.6" },
     ], rows, { sort: 6, dir: -1 });
   };
   $("p-by").onchange = draw;
@@ -441,6 +459,7 @@ const [startTab, startGame, startItem] = location.hash.slice(1).split("/");
 if (startGame) { openGame = +startGame; openItem = startItem ? +startItem : null; }
 renderOverview(); renderRounds(); renderItems(); renderPatterns(); renderRivals();
 show(TABS.some(([id]) => id === startTab) ? startTab : "overview");
+if (!startGame) setTimeout(() => scrollTo(0, 0), 0);
 </script>
 </body>
 </html>
