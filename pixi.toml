@@ -38,6 +38,7 @@ learn = { cmd = "python scripts/learn_from_game.py", env = { PYTHONPATH = "." } 
 # which cannot happen in the same process because the Transactions that reveal the Fair Value
 # only appear a minute or two after a Game ends. Two terminals: one plays, one learns.
 watch = { cmd = "python scripts/learn_watch.py", env = { PYTHONPATH = "." } }
+ultra = { cmd = "python -m ultraanalyse.refresh --var var", env = { PYTHONPATH = "." } }
 
 # What `watch` spawns automatically for every new lesson: a Claude agent that opens the Case
 # and judges the digest against CLAUDE.md's own evidentiary bar. `pixi run review-game 42`

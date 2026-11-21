@@ -96,3 +96,8 @@ var/ai_log/
 var/reviews/
 var/decisions/
 var/lessons/
+
+# ultraanalyse: public pulls, our private logs and the built dashboard stay local.
+# The dashboard embeds our Charges, Limits and model output; this repository is public.
+ultraanalyse/data/
+ultraanalyse/out/

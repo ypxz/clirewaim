@@ -1,0 +1,465 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WireClaim Ultraanalyse</title>
+<style>
+:root {
+  --bg: #f6f7f9; --panel: #ffffff; --ink: #14181f; --muted: #667085; --line: #e3e6eb;
+  --accent: #3b5bdb; --accent-soft: #e7ecff; --good: #0f8a4f; --bad: #d1343f; --warn: #b7791f;
+  --good-soft: #e3f6ec; --bad-soft: #fde8ea; --warn-soft: #fdf2dc; --row: #f1f3f6;
+}
+:root[data-theme="dark"] {
+  --bg: #0e1116; --panel: #171b22; --ink: #e8ebf0; --muted: #98a2b3; --line: #2a303a;
+  --accent: #8aa2ff; --accent-soft: #1f2947; --good: #3ecf8e; --bad: #ff6b76; --warn: #f0b34a;
+  --good-soft: #12301f; --bad-soft: #3a1a1e; --warn-soft: #3a2c12; --row: #1e242d;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+header { position: sticky; top: 0; z-index: 5; background: var(--panel); border-bottom: 1px solid var(--line); }
+.bar { max-width: 1800px; margin: 0 auto; padding: 12px 24px 0; display: flex; align-items: baseline; gap: 16px; flex-wrap: wrap; }
+h1 { font-size: 18px; margin: 0; letter-spacing: -0.01em; }
+.sub { color: var(--muted); font-size: 13px; }
+nav { max-width: 1800px; margin: 0 auto; padding: 8px 24px 0; display: flex; gap: 4px; }
+nav button { border: 0; background: none; color: var(--muted); font: inherit; font-weight: 600; padding: 8px 12px; border-bottom: 2px solid transparent; cursor: pointer; }
+nav button.on { color: var(--ink); border-bottom-color: var(--accent); }
+main { max-width: 1800px; margin: 0 auto; padding: 20px 24px 60px; }
+section { display: none; } section.on { display: block; }
+h2 { font-size: 15px; margin: 28px 0 4px; } h2:first-child { margin-top: 0; }
+p.note { color: var(--muted); margin: 0 0 10px; max-width: 900px; }
+.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }
+.kpi { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; }
+.kpi .label { color: var(--muted); font-size: 12px; }
+.kpi .value { font-size: 24px; font-weight: 650; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.kpi .hint { color: var(--muted); font-size: 12px; }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px; overflow-x: auto; }
+.grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); gap: 16px; }
+table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; }
+th, td { padding: 6px 8px; text-align: left; border-bottom: 1px solid var(--line); white-space: nowrap; }
+th { color: var(--muted); font-size: 12px; font-weight: 600; position: sticky; top: 0; background: var(--panel); }
+th.sort { cursor: pointer; } th.sort:hover { color: var(--ink); }
+td.num, th.num { text-align: right; }
+td.wrap { white-space: normal; min-width: 180px; }
+tr.click { cursor: pointer; } tr.click:hover td { background: var(--row); }
+tr.sel td { background: var(--accent-soft); }
+tr.us td { font-weight: 650; }
+tr.detail > td { background: var(--bg); padding: 12px; white-space: normal; }
+.pos { color: var(--good); } .neg { color: var(--bad); } .dim { color: var(--muted); }
+.tag { display: inline-block; font-size: 11px; padding: 1px 7px; border-radius: 999px; margin: 1px 3px 1px 0; background: var(--row); color: var(--muted); white-space: nowrap; }
+.tag.bad { background: var(--bad-soft); color: var(--bad); } .tag.warn { background: var(--warn-soft); color: var(--warn); } .tag.good { background: var(--good-soft); color: var(--good); }
+.controls { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin: 0 0 10px; }
+select, input[type=search] { font: inherit; color: var(--ink); background: var(--panel); border: 1px solid var(--line); border-radius: 7px; padding: 5px 8px; }
+button.ghost { font: inherit; color: var(--muted); background: var(--panel); border: 1px solid var(--line); border-radius: 7px; padding: 4px 10px; cursor: pointer; }
+.meta { display: flex; gap: 18px; flex-wrap: wrap; color: var(--muted); font-size: 13px; margin: 4px 0 10px; }
+.meta b { color: var(--ink); font-weight: 600; }
+details { margin: 6px 0; } summary { cursor: pointer; color: var(--accent); }
+pre.case { white-space: pre-wrap; font: inherit; color: var(--ink); margin: 6px 0 0; max-width: 900px; }
+.clause { border-left: 3px solid var(--line); padding: 2px 10px; margin: 6px 0; color: var(--muted); max-width: 900px; }
+.bar-cell { display: flex; align-items: center; gap: 6px; justify-content: flex-end; }
+.bar-cell i { display: inline-block; height: 8px; border-radius: 2px; }
+svg text { fill: var(--muted); font-size: 11px; }
+svg .axis { stroke: var(--line); }
+.legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; color: var(--muted); margin-top: 6px; }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 5px; }
+footer { color: var(--muted); font-size: 12px; max-width: 900px; margin-top: 32px; }
+</style>
+</head>
+<body>
+<header>
+  <div class="bar">
+    <h1>WireClaim Ultraanalyse</h1>
+    <span class="sub" id="status"></span>
+    <span style="flex:1"></span>
+    <button class="ghost" id="theme">Dark / light</button>
+  </div>
+  <nav id="nav"></nav>
+</header>
+<main>
+  <section id="overview"></section>
+  <section id="rounds"></section>
+  <section id="items"></section>
+  <section id="patterns"></section>
+  <section id="rivals"></section>
+  <footer id="foot"></footer>
+</main>
+<script>
+const D = /*DATASET*/null;
+const US = D.us;
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const n0 = new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 });
+const n2 = new Intl.NumberFormat("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const eur = (v) => (v == null ? '<span class="dim">–</span>' : n2.format(v));
+const big = (v) => (v == null ? '<span class="dim">–</span>' : n0.format(v));
+const signed = (v, f = big) => (v == null ? '<span class="dim">–</span>' : `<span class="${v > 0.005 ? "pos" : v < -0.005 ? "neg" : "dim"}">${v > 0.005 ? "+" : ""}${f(v)}</span>`);
+const cost = (v) => (!v ? '<span class="dim">0</span>' : `<span class="neg">${big(v)}</span>`);
+const ratio = (v) => (v == null ? '<span class="dim">–</span>' : v.toFixed(2) + "×");
+const pct = (v) => (v == null ? '<span class="dim">–</span>' : Math.round(v * 100) + "%");
+const sum = (xs, f) => xs.reduce((s, x) => s + (f(x) || 0), 0);
+const median = (xs) => { const s = xs.filter((x) => x != null).sort((a, b) => a - b); return s.length ? (s.length % 2 ? s[(s.length - 1) / 2] : (s[s.length / 2 - 1] + s[s.length / 2]) / 2) : null; };
+const ITEMS = D.games.flatMap((g) => g.items.map((i) => Object.assign(i, { game: g.id, topic: g.topic })));
+const seenNames = new Set();
+ITEMS.forEach((i) => { i.seen_before = i.named ? seenNames.has(i.name) : null; if (i.named) seenNames.add(i.name); });
+const rmsLog = (xs) => { const v = xs.filter((x) => x > 0).map((x) => Math.log(x) ** 2); return v.length ? Math.sqrt(v.reduce((a, b) => a + b, 0) / v.length) : null; };
+const groupNet = (key) => { const m = new Map(); ITEMS.forEach((i) => m.set(key(i), (m.get(key(i)) || 0) + i.net)); return [...m].sort((a, b) => b[1] - a[1]); };
+function barList(rows, by) {
+  const scale = Math.max(...rows.map(([, v]) => Math.abs(v)), 1);
+  return `<table>${rows.map(([name, v]) => `<tr class="click" data-by="${esc(by)}"><td>${esc(name)}</td><td class="num"><div class="bar-cell">${signed(v)}<i style="width:${(160 * Math.abs(v)) / scale}px;background:var(--${v >= 0 ? "good" : "bad"})"></i></div></td></tr>`).join("")}</table>`;
+}
+const PALETTE = ["#3b5bdb", "#e8590c", "#0ca678", "#ae3ec9", "#f59f00", "#1098ad", "#d6336c", "#74b816"];
+const BAD_TAGS = new Set(["Overcharged a covered item", "Rejected fair claims", "Paid overcharges", "Priced as uncovered, was covered", "Fallback values submitted"]);
+const WARN_TAGS = new Set(["Estimate too high", "Estimate too low", "Undercharged", "Priced as covered, no fair Charge seen", "Fraud lock"]);
+const tags = (list) => list.map((t) => `<span class="tag ${BAD_TAGS.has(t) ? "bad" : WARN_TAGS.has(t) ? "warn" : "good"}">${esc(t)}</span>`).join("");
+
+function fairValue(i) {
+  if (i.t_quality === "no-fair-charge") return `<span class="dim" title="No Charge was proven fair. Smallest proven Overcharge: ${i.t_hi ?? "none"}">0?${i.t_hi != null ? " (&lt; " + n2.format(i.t_hi) + ")" : ""}</span>`;
+  if (i.t_hi == null) return `&ge; ${n2.format(i.t_lo)}`;
+  return `${n2.format(i.t_lo)} – ${n2.format(i.t_hi)}`;
+}
+function limitOf(e) {
+  if (e.b != null) return n2.format(e.b);
+  if (e.b_hi == null) return `&ge; ${n2.format(e.b_lo)}`;
+  return `${n2.format(e.b_lo)} – ${n2.format(e.b_hi)}`;
+}
+function chargeOf(e) {
+  if (e.a == null) return '<span class="dim" title="Overcharge that nobody accepted: the amount never shows in the record">unseen</span>';
+  return (e.a_kind === "at-least" ? "&ge; " : "") + n2.format(e.a);
+}
+const fairMark = (f) => (f === true ? '<span class="pos">fair</span>' : f === false ? '<span class="neg">over</span>' : '<span class="dim">?</span>');
+
+/* Generic sortable table. cols: {h, v(row) sortable value, f(row) html, num, title} */
+function table(host, cols, rows, opt = {}) {
+  let sortCol = opt.sort ?? null, dir = opt.dir ?? -1, open = opt.open ?? null;
+  const draw = () => {
+    const sorted = sortCol == null ? rows : [...rows].sort((x, y) => {
+      const a = cols[sortCol].v(x), b = cols[sortCol].v(y);
+      if (a == null) return 1; if (b == null) return -1;
+      return (a > b ? 1 : a < b ? -1 : 0) * dir;
+    });
+    const head = cols.map((c, k) => `<th class="sort ${c.num ? "num" : ""}" data-k="${k}" title="${esc(c.title || "")}">${c.h}${sortCol === k ? (dir > 0 ? " ▲" : " ▼") : ""}</th>`).join("");
+    const body = sorted.map((r) => {
+      const key = opt.key ? opt.key(r) : null;
+      const cls = [opt.click || opt.detail ? "click" : "", opt.rowClass ? opt.rowClass(r) : "", key != null && key === open ? "sel" : ""].join(" ");
+      const cells = cols.map((c) => `<td class="${c.num ? "num" : ""} ${c.wrap ? "wrap" : ""}">${(c.f || c.v)(r) ?? ""}</td>`).join("");
+      const extra = opt.detail && key === open ? `<tr class="detail"><td colspan="${cols.length}">${opt.detail(r)}</td></tr>` : "";
+      return `<tr class="${cls}" data-key="${esc(key)}">${cells}</tr>${extra}`;
+    }).join("");
+    host.innerHTML = `<table><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table>`;
+    host.querySelectorAll("th.sort").forEach((th) => th.onclick = () => { const k = +th.dataset.k; if (sortCol === k) dir = -dir; else { sortCol = k; dir = cols[k].num ? -1 : 1; } draw(); });
+    host.querySelectorAll("tr.click").forEach((tr) => tr.onclick = () => {
+      const key = tr.dataset.key;
+      if (opt.detail) { open = String(open) === key ? null : (isNaN(+key) ? key : +key); draw(); }
+      if (opt.click) opt.click(key);
+    });
+    if (opt.after) opt.after(host);
+  };
+  draw();
+}
+
+/* Charts */
+function lineChart(series, labels, height = 260) {
+  const W = 760, H = height, L = 56, R = 12, T = 10, B = 26;
+  const all = series.flatMap((s) => s.values);
+  const lo = Math.min(0, ...all), hi = Math.max(0, ...all), span = hi - lo || 1;
+  const x = (k) => L + (k * (W - L - R)) / Math.max(labels.length - 1, 1);
+  const y = (v) => T + ((hi - v) * (H - T - B)) / span;
+  const ticks = [lo, lo + span / 4, lo + span / 2, lo + (3 * span) / 4, hi];
+  const grid = ticks.map((t) => `<line class="axis" x1="${L}" x2="${W - R}" y1="${y(t)}" y2="${y(t)}"/><text x="${L - 6}" y="${y(t) + 4}" text-anchor="end">${n0.format(t)}</text>`).join("");
+  const step = Math.ceil(labels.length / 16);
+  const xl = labels.map((l, k) => (k % step ? "" : `<text x="${x(k)}" y="${H - 8}" text-anchor="middle">${l}</text>`)).join("");
+  const paths = series.map((s) => `<path d="${s.values.map((v, k) => (k ? "L" : "M") + x(k).toFixed(1) + " " + y(v).toFixed(1)).join(" ")}" fill="none" stroke="${s.color}" stroke-width="${s.bold ? 3 : 1.5}" opacity="${s.bold ? 1 : 0.75}"><title>${esc(s.name)}</title></path>`).join("");
+  const legend = series.map((s) => `<span><i style="background:${s.color}"></i>${esc(s.name)}</span>`).join("");
+  return `<svg viewBox="0 0 ${W} ${H}" width="100%">${grid}<line class="axis" x1="${L}" x2="${W - R}" y1="${y(0)}" y2="${y(0)}" style="stroke:var(--muted)"/>${xl}${paths}</svg><div class="legend">${legend}</div>`;
+}
+function barChart(values, labels, titles, height = 220) {
+  const W = 760, H = height, L = 56, R = 12, T = 10, B = 26;
+  const lo = Math.min(0, ...values), hi = Math.max(0, ...values), span = hi - lo || 1;
+  const bw = (W - L - R) / values.length;
+  const y = (v) => T + ((hi - v) * (H - T - B)) / span;
+  const ticks = [lo, lo + span / 2, hi];
+  const grid = ticks.map((t) => `<line class="axis" x1="${L}" x2="${W - R}" y1="${y(t)}" y2="${y(t)}"/><text x="${L - 6}" y="${y(t) + 4}" text-anchor="end">${n0.format(t)}</text>`).join("");
+  const step = Math.ceil(labels.length / 16);
+  const bars = values.map((v, k) => `<rect x="${L + k * bw + 1}" width="${Math.max(bw - 2, 1)}" y="${Math.min(y(v), y(0))}" height="${Math.max(Math.abs(y(v) - y(0)), 1)}" fill="var(--${v >= 0 ? "good" : "bad"})" data-game="${labels[k]}" style="cursor:pointer"><title>${esc(titles[k])}</title></rect>${k % step ? "" : `<text x="${L + k * bw + bw / 2}" y="${H - 8}" text-anchor="middle">${labels[k]}</text>`}`).join("");
+  return `<svg viewBox="0 0 ${W} ${H}" width="100%">${grid}${bars}<line class="axis" x1="${L}" x2="${W - R}" y1="${y(0)}" y2="${y(0)}" style="stroke:var(--muted)"/></svg>`;
+}
+function scatter(points, xLabel, yLabel) {
+  const W = 520, H = 420, L = 56, R = 14, T = 12, B = 40;
+  const all = points.flatMap((p) => [p.x, p.y]).filter((v) => v > 0);
+  if (!all.length) return '<p class="note">No Line Item with a closed Fair Value bracket yet.</p>';
+  const lo = Math.log10(Math.min(...all) * 0.8), hi = Math.log10(Math.max(...all) * 1.25);
+  const sx = (v) => L + ((Math.log10(v) - lo) * (W - L - R)) / (hi - lo);
+  const sy = (v) => H - B - ((Math.log10(v) - lo) * (H - T - B)) / (hi - lo);
+  let ticks = "";
+  for (let e = Math.ceil(lo); e <= Math.floor(hi); e++) {
+    const v = 10 ** e;
+    ticks += `<line class="axis" x1="${sx(v)}" x2="${sx(v)}" y1="${T}" y2="${H - B}"/><line class="axis" x1="${L}" x2="${W - R}" y1="${sy(v)}" y2="${sy(v)}"/><text x="${sx(v)}" y="${H - B + 14}" text-anchor="middle">${n0.format(v)}</text><text x="${L - 6}" y="${sy(v) + 4}" text-anchor="end">${n0.format(v)}</text>`;
+  }
+  const a = 10 ** lo, b = 10 ** hi;
+  const dots = points.map((p) => `<circle cx="${sx(p.x)}" cy="${sy(p.y)}" r="4.5" fill="${p.color}" opacity="0.75" data-go="${p.go}" style="cursor:pointer"><title>${esc(p.title)}</title></circle>`).join("");
+  return `<svg viewBox="0 0 ${W} ${H}" width="100%" style="max-width:560px">${ticks}<line x1="${sx(a)}" y1="${sy(a)}" x2="${sx(b)}" y2="${sy(b)}" stroke="var(--muted)" stroke-dasharray="4 4"/>${dots}<text x="${(W + L) / 2}" y="${H - 6}" text-anchor="middle">${xLabel}</text><text transform="translate(12 ${H / 2}) rotate(-90)" text-anchor="middle">${yLabel}</text></svg>`;
+}
+
+/* Navigation */
+const TABS = [["overview", "Overview"], ["rounds", "Rounds"], ["items", "Line Items"], ["patterns", "Patterns"], ["rivals", "Rivals"]];
+let openGame = null, openItem = null;
+function show(tab) {
+  TABS.forEach(([id]) => { $(id).classList.toggle("on", id === tab); });
+  document.querySelectorAll("nav button").forEach((b) => b.classList.toggle("on", b.dataset.tab === tab));
+  history.replaceState(null, "", "#" + [tab, tab === "rounds" ? openGame : null, tab === "rounds" ? openItem : null].filter((x) => x != null).join("/"));
+}
+function go(game, item) { openGame = +game; openItem = item == null ? null : +item; renderRounds(); show("rounds"); const d = $("round-detail"); if (d) d.scrollIntoView({ behavior: "smooth", block: "start" }); }
+$("nav").innerHTML = TABS.map(([id, label]) => `<button data-tab="${id}">${label}</button>`).join("");
+document.querySelectorAll("nav button").forEach((b) => b.onclick = () => show(b.dataset.tab));
+$("theme").onclick = () => { const r = document.documentElement; r.dataset.theme = r.dataset.theme === "dark" ? "light" : "dark"; };
+if (matchMedia("(prefers-color-scheme: dark)").matches) document.documentElement.dataset.theme = "dark";
+
+/* Overview */
+function renderOverview() {
+  const me = D.profiles.find((p) => p.team === US);
+  const rank = 1 + D.profiles.findIndex((p) => p.team === US);
+  const penalty = sum(ITEMS, (i) => i.penalty), overpaid = sum(ITEMS, (i) => i.overpaid_cost), gap = sum(ITEMS, (i) => i.issuer_gap);
+  const fairIncome = sum(ITEMS.filter((i) => i.our_fair !== false), (i) => i.income), rejectedIncome = sum(ITEMS, (i) => i.rejected_income);
+  const overIncome = sum(ITEMS.filter((i) => i.our_fair === false), (i) => i.income);
+  const fairPaid = sum(ITEMS, (i) => i.fair_paid_cost), wrongful = sum(ITEMS, (i) => i.wrongful_cost), unclearPaid = sum(ITEMS, (i) => i.unclear_paid_cost);
+  const kpi = (label, value, hint) => `<div class="kpi"><div class="label">${label}</div><div class="value">${value}</div><div class="hint">${hint}</div></div>`;
+  const cum = (team) => { let s = 0; return D.games.map((g) => (s += g.team_net[team] || 0)); };
+  const rivals = D.profiles.filter((p) => p.team !== US).slice(0, 5).map((p, k) => ({ name: p.team, values: cum(p.team), color: PALETTE[k + 1] }));
+  const leaks = [...ITEMS].sort((a, b) => b.reviewer_regret + b.issuer_gap - a.reviewer_regret - a.issuer_gap).slice(0, 10);
+  $("overview").innerHTML = `
+    <div class="kpis">
+      ${kpi("Net", signed(me.net), `rank ${rank} of ${D.profiles.length}`)}
+      ${kpi("Income as Issuer", big(me.income), `${big(rejectedIncome)} of it from fair Charges that were rejected (1.5×)`)}
+      ${kpi("Costs as Reviewer", big(me.costs), `${big(wrongful)} paid on fair claims we rejected`)}
+      ${kpi("Penalty for rejecting fair claims", cost(penalty), "the extra 0.5× on top of the Charge")}
+      ${kpi("Overcharges we accepted", cost(overpaid), `on ${ITEMS.filter((i) => i.overpaid_n).length} Line Items`)}
+      ${kpi("Issuer income left on the table", cost(gap), "vs charging the largest Charge proven fair")}
+    </div>
+    <h2>Cumulative net</h2><div class="panel">${lineChart([{ name: US + " (us)", values: cum(US), color: PALETTE[0], bold: true }, ...rivals], D.games.map((g) => g.id))}</div>
+    <h2>Our net per Game</h2><p class="note">Click a bar to open the round.</p><div class="panel" id="netbars">${barChart(D.games.map((g) => g.net), D.games.map((g) => g.id), D.games.map((g) => `Game ${g.id} · ${g.topic} · net ${n0.format(g.net)} · rank ${g.rank}/${g.n_teams}`))}</div>
+    <div class="grid2">
+      <div><h2>Net by topic of the Case</h2><div class="panel" id="by-topic">${barList(groupNet((i) => i.topic), "Topic of the Case")}</div></div>
+      <div><h2>Net by Line Item category</h2><div class="panel" id="by-cat">${barList(groupNet((i) => i.category), "Line Item category")}</div></div>
+    </div>
+    <p class="note">Click a row for income, cost and avoidable loss of that grouping.</p>
+    <div class="grid2">
+      <div><h2>Where the money went</h2><div class="panel"><table>
+        <tr><th>Income as Issuer</th><th class="num">amount</th></tr>
+        <tr><td>Fair Charges, accepted (paid 1×)</td><td class="num">${big(fairIncome - rejectedIncome)}</td></tr>
+        <tr><td>Fair Charges, rejected (paid 1.5×)</td><td class="num">${big(rejectedIncome)}</td></tr>
+        <tr><td>Overcharges somebody accepted</td><td class="num">${big(overIncome)}</td></tr>
+        <tr><th>Costs as Reviewer</th><th class="num">amount</th></tr>
+        <tr><td>Fair claims we accepted (1×)</td><td class="num">${big(fairPaid)}</td></tr>
+        <tr><td>Fair claims we rejected (1.5×)</td><td class="num">${big(wrongful)}</td></tr>
+        <tr><td>Overcharges we accepted</td><td class="num">${big(overpaid)}</td></tr>
+        <tr><td title="Every Reviewer accepted the Charge and it sits above every Charge proven fair, so the record cannot say">Accepted, fairness not determinable</td><td class="num">${big(unclearPaid)}</td></tr>
+      </table></div></div>
+      <div><h2>Standings</h2><div class="panel" id="standings"></div></div>
+    </div>
+    <h2>Ten most expensive Line Items</h2><p class="note">Ranked by avoidable loss: penalty and accepted Overcharges as Reviewer, plus Issuer income left on the table. Click to open.</p><div class="panel" id="leaks"></div>`;
+  table($("standings"), [
+    { h: "#", v: (p) => 1 + D.profiles.indexOf(p), num: true },
+    { h: "Team", v: (p) => p.team, f: (p) => esc(p.team) },
+    { h: "Net", v: (p) => p.net, f: (p) => signed(p.net), num: true },
+    { h: "Income", v: (p) => p.income, f: (p) => big(p.income), num: true },
+    { h: "Costs", v: (p) => p.costs, f: (p) => big(p.costs), num: true },
+  ], D.profiles, { rowClass: (p) => (p.team === US ? "us" : "") });
+  table($("leaks"), itemCols(true).filter((c) => !c.hideInLeaks), leaks, { key: (i) => i.game + "/" + i.index, click: (k) => go(...k.split("/")) });
+  document.querySelectorAll("#by-topic tr, #by-cat tr").forEach((tr) => tr.onclick = () => { $("p-by").value = tr.dataset.by; $("p-by").onchange(); show("patterns"); });
+  $("netbars").querySelectorAll("rect").forEach((r) => r.onclick = () => go(r.dataset.game));
+}
+
+/* Columns shared by every Line Item table */
+function itemCols(withGame) {
+  const cols = [
+    { h: "#", v: (i) => i.index, num: true },
+    { h: "Line Item", v: (i) => i.name, f: (i) => esc(i.name), wrap: true },
+    { h: "Charge a", v: (i) => i.a, f: (i) => chargeOf(i.teams[US]) + " " + fairMark(i.our_fair), num: true, title: "What we charged, and whether it was at or below the Fair Value" },
+    { h: "Limit b", v: (i) => i.b ?? i.b_lo, f: (i) => limitOf(i.teams[US]), num: true, title: "The most we accepted to pay" },
+    { h: "Our estimate", v: (i) => i.t_hat, f: (i) => (i.t_hat == null ? eur(null) : `<span title="band ${n2.format(i.t_hat_low)} – ${n2.format(i.t_hat_high)}">${n2.format(i.t_hat)}</span>`), num: true, title: "The Fair Value our pipeline estimated (median of its band)" },
+    { h: "Covered?", v: (i) => i.coverage, f: (i) => pct(i.coverage), num: true, title: "Our coverage probability" },
+    { h: "Fair Value t", v: (i) => i.t, f: fairValue, num: true, title: "Bracket recovered from the Transactions: largest Charge proven fair – smallest proven Overcharge" },
+    { h: "a / t", v: (i) => i.a_ratio, f: (i) => ratio(i.a_ratio), num: true },
+    { h: "b / t", v: (i) => i.b_ratio, f: (i) => ratio(i.b_ratio), num: true },
+    { h: "Income", v: (i) => i.income, f: (i) => `<span title="paid by ${i.paid_by} teams">${big(i.income)}</span>`, num: true },
+    { h: "Cost", v: (i) => i.cost, f: (i) => big(i.cost), num: true },
+    { h: "Net", v: (i) => i.net, f: (i) => signed(i.net), num: true },
+    { h: "Avoidable", v: (i) => i.reviewer_regret + i.issuer_gap, f: (i) => cost(i.reviewer_regret + i.issuer_gap), num: true, title: "Penalty + accepted Overcharges + Issuer income left on the table" },
+    { h: "Fraud gate", v: (i) => (i.fraud_lock ? 2 : i.fraud_flag ? 1 : 0), f: (i) => (i.fraud_lock ? '<span class="tag warn">locked</span>' : i.fraud_flag ? '<span class="tag">flagged</span>' : `<span class="dim">${i.logged ? "no" : "not logged"}</span>`), hideInLeaks: true },
+    { h: "Verdict", v: (i) => i.tags.length, f: (i) => tags(i.tags), wrap: true },
+  ];
+  if (withGame) cols.unshift({ h: "Game", v: (i) => i.game, num: true }, { h: "Topic", v: (i) => i.topic, f: (i) => esc(i.topic) });
+  return cols;
+}
+
+function itemDetail(i) {
+  const rows = Object.entries(i.teams).map(([team, e]) => Object.assign({ team }, e));
+  const id = `teams-${i.game}-${i.index}`;
+  const draws = i.draws.map((d) => `<div class="clause"><b>Draw ${esc(d.draw)}</b>: covered ${pct(d.coverage)}, price ${eur(d.low)} – ${eur(d.median)} – ${eur(d.high)}<br>${esc(d.clause) || "no clause quoted"}</div>`).join("");
+  setTimeout(() => {
+    const host = $(id); if (!host) return;
+    table(host, [
+      { h: "Team", v: (e) => e.team, f: (e) => esc(e.team) },
+      { h: "Charge a", v: (e) => e.a, f: chargeOf, num: true },
+      { h: "", v: (e) => (e.fair === true ? 1 : e.fair === false ? -1 : 0), f: (e) => fairMark(e.fair) },
+      { h: "Limit b", v: (e) => e.b ?? e.b_lo, f: limitOf, num: true, title: "Seen only as a range: at least the largest Charge it accepted, below the smallest it rejected" },
+      { h: "Implied estimate of t", v: (e) => e.t_implied, f: (e) => eur(e.t_implied), num: true, title: "Inference: its Charge divided by the share of t it typically charges" },
+      { h: "Income", v: (e) => e.income, f: (e) => big(e.income), num: true },
+      { h: "Paid by", v: (e) => e.paid_by, num: true },
+      { h: "Cost", v: (e) => e.cost, f: (e) => big(e.cost), num: true },
+      { h: "of it penalty", v: (e) => e.penalty, f: (e) => cost(e.penalty), num: true },
+      { h: "of it Overcharges", v: (e) => e.overpaid_cost, f: (e) => cost(e.overpaid_cost), num: true },
+      { h: "Net", v: (e) => e.net, f: (e) => signed(e.net), num: true },
+    ], rows, { sort: 10, dir: -1, rowClass: (e) => (e.team === US ? "us" : "") });
+  }, 0);
+  return `<div class="meta">
+      <span>Evidence: <b>${esc(i.channels.join(" + ") || "none logged")}</b></span><span>Rule: <b>${esc(i.rule || "–")}</b></span>
+      <span>Band width σ: <b>${i.sigma ?? "–"}</b></span><span>Estimate / Fair Value: <b>${ratio(i.estimate_ratio)}</b></span>
+      <span>Category: <b>${esc(i.category)}</b></span>${i.cap != null ? `<span>Cap seen: <b>${n2.format(i.cap)}</b></span>` : ""}
+      <span>As Reviewer: <b>${i.fair_paid_n}</b> fair accepted, <b>${i.wrongful_n}</b> fair rejected, <b>${i.overpaid_n}</b> Overcharges accepted${i.unclear_paid_n ? `, <b>${i.unclear_paid_n}</b> accepted with fairness unknown` : ""}</span>
+      <span>Income if we had charged ${eur(i.t_lo)}: <b>${big(i.issuer_benchmark)}</b></span>
+    </div>${draws}<div id="${id}"></div>`;
+}
+
+/* Rounds */
+function renderRounds() {
+  $("rounds").innerHTML = `<p class="note">One row per settled Game. Click a row for its Case, our submission timeline and every Line Item.</p><div class="panel" id="rounds-table"></div><div id="round-detail"></div>`;
+  table($("rounds-table"), [
+    { h: "Game", v: (g) => g.id, num: true },
+    { h: "Start", v: (g) => g.start, f: (g) => (g.start ? new Date(g.start).toLocaleString([], { weekday: "short", hour: "2-digit", minute: "2-digit" }) : "") },
+    { h: "Topic", v: (g) => g.topic, f: (g) => esc(g.topic) },
+    { h: "Items", v: (g) => g.items.length, num: true },
+    { h: "Net", v: (g) => g.net, f: (g) => signed(g.net), num: true },
+    { h: "Rank", v: (g) => g.rank, f: (g) => `${g.rank} / ${g.n_teams}`, num: true },
+    { h: "Best team", v: (g) => g.team_net[g.best_team], f: (g) => `${esc(g.best_team)} ${signed(g.team_net[g.best_team])}`, num: true },
+    { h: "Income", v: (g) => g.income, f: (g) => big(g.income), num: true },
+    { h: "Cost", v: (g) => g.cost, f: (g) => big(g.cost), num: true },
+    { h: "Penalty", v: (g) => g.penalty, f: (g) => cost(g.penalty), num: true, title: "Extra 0.5× paid for rejecting fair claims" },
+    { h: "Overcharges paid", v: (g) => g.overpaid, f: (g) => cost(g.overpaid), num: true },
+    { h: "Income missed", v: (g) => g.issuer_gap, f: (g) => cost(g.issuer_gap), num: true, title: "vs charging the largest Charge proven fair on every Line Item" },
+    { h: "Final post", v: (g) => g.final_at, f: (g) => (g.final_source ? `${esc(g.final_source)} at ${g.final_at}s` : '<span class="tag bad">no log</span>') },
+    { h: "Fraud locks", v: (g) => g.items.filter((i) => i.fraud_lock).length, num: true },
+  ], D.games, { key: (g) => g.id, open: openGame, sort: 0, dir: -1, click: (k) => { openGame = +k; openItem = null; renderRoundDetail(); show("rounds"); } });
+  renderRoundDetail();
+}
+function renderRoundDetail() {
+  const g = D.games.find((x) => x.id === openGame), host = $("round-detail");
+  if (!g) { host.innerHTML = ""; return; }
+  const posts = g.posts.map((p) => `<span class="tag ${p.landed ? "" : "bad"}">${p.at}s ${esc(p.source)}${p.landed ? "" : " (failed)"}</span>`).join("");
+  const nets = Object.entries(g.team_net);
+  const scale = Math.max(...nets.map(([, v]) => Math.abs(v)), 1);
+  host.innerHTML = `<h2>Game ${g.id}: ${esc(g.topic)}</h2>
+    <div class="meta"><span>Policy: <b>${esc(g.policy || "not in the Drive yet")}</b></span><span>Net <b>${signed(g.net)}</b>, rank <b>${g.rank} of ${g.n_teams}</b></span><span>Model: <b>${esc(g.model || "–")}</b>${g.draws.length ? `, draws ${g.draws.map((d) => d.seconds + "s").join(" / ")}` : ""}</span><span>Photos: <b>${g.photos}</b></span></div>
+    ${g.description ? `<details><summary>Damage description</summary><pre class="case">${esc(g.description)}</pre></details>` : ""}
+    <div class="meta"><span>Posts: ${posts || '<span class="tag bad">no run log for this Game</span>'}</span></div>
+    ${g.warnings.length ? `<div class="meta"><span>${g.warnings.map((w) => `<span class="tag warn">${esc(w)}</span>`).join("")}</span></div>` : ""}
+    <div class="grid2"><div class="panel"><table><tr><th>Team</th><th class="num">Net this Game</th></tr>${nets.map(([t, v]) => `<tr class="${t === US ? "us" : ""}"><td>${esc(t)}</td><td class="num"><div class="bar-cell">${signed(v)}<i style="width:${(120 * Math.abs(v)) / scale}px;background:var(--${v >= 0 ? "good" : "bad"})"></i></div></td></tr>`).join("")}</table></div></div>
+    <h2>Line Items</h2><p class="note">Click a Line Item for every team's Charge, Limit and result, and what our model quoted.</p><div class="panel" id="round-items"></div>`;
+  table($("round-items"), itemCols(false), g.items, { key: (i) => i.index, open: openItem, detail: itemDetail });
+}
+
+/* Line Items */
+function renderItems() {
+  const uniq = (f) => [...new Set(ITEMS.flatMap(f))].sort();
+  const sel = (id, label, values) => `<select id="${id}"><option value="">${label}</option>${values.map((v) => `<option>${esc(v)}</option>`).join("")}</select>`;
+  $("items").innerHTML = `<div class="controls">${sel("f-topic", "All topics", uniq((i) => [i.topic]))}${sel("f-cat", "All categories", uniq((i) => [i.category]))}${sel("f-tag", "All verdicts", uniq((i) => i.tags))}
+    <select id="f-cov"><option value="">Covered or not</option><option value="1">A fair Charge was seen (covered)</option><option value="0">No fair Charge seen</option></select>
+    <input type="search" id="f-q" placeholder="Search Line Item"><span class="sub" id="f-n"></span></div><div class="panel" id="items-table"></div>`;
+  const draw = () => {
+    const topic = $("f-topic").value, cat = $("f-cat").value, tag = $("f-tag").value, cov = $("f-cov").value, q = $("f-q").value.toLowerCase();
+    const rows = ITEMS.filter((i) => (!topic || i.topic === topic) && (!cat || i.category === cat) && (!tag || i.tags.includes(tag)) && (!cov || (i.t_lo > 0) === (cov === "1")) && (!q || i.name.toLowerCase().includes(q)));
+    $("f-n").textContent = `${rows.length} Line Items, net ${n0.format(sum(rows, (i) => i.net))}`;
+    table($("items-table"), itemCols(true), rows, { key: (i) => i.game + "/" + i.index, sort: 13, dir: 1, click: (k) => go(...k.split("/")) });
+  };
+  ["f-topic", "f-cat", "f-tag", "f-cov"].forEach((id) => ($(id).onchange = draw));
+  $("f-q").oninput = draw;
+  draw();
+}
+
+/* Patterns */
+const bucket = (v, edges) => { if (v == null) return "not logged"; for (const [hi, label] of edges) if (v < hi) return label; return edges[edges.length - 1][1]; };
+const SIZE = [[50, "1 · under 50"], [200, "2 · 50–200"], [1000, "3 · 200–1,000"], [Infinity, "4 · over 1,000"]];
+const GROUPS = {
+  "Topic of the Case": (i) => [i.topic],
+  "Line Item category": (i) => [i.category],
+  "Evidence used": (i) => [i.channels.length ? i.channels.join(" + ") : "not logged"],
+  "Our coverage call vs outcome": (i) => [i.coverage == null ? "not logged" : `${i.coverage > 2 / 3 ? "we said covered" : "we said uncovered"} / ${i.t_lo > 0 ? "a fair Charge was seen" : "no fair Charge seen"}`],
+  "Size of our estimate": (i) => [bucket(i.t_hat, SIZE)],
+  "Size of the Fair Value": (i) => [i.t_lo > 0 ? bucket(i.t, SIZE) : "0 · no fair Charge seen"],
+  "Was our Charge fair?": (i) => [i.our_fair === true ? "fair" : i.our_fair === false ? "Overcharge" : "unknown (everyone accepted)"],
+  "Verdict": (i) => (i.tags.length ? i.tags : ["clean"]),
+  "Fraud gate": (i) => [!i.logged ? "not logged" : i.fraud_lock ? "locked (Limit forced to 0)" : "not locked"],
+  "Wording seen in an earlier Game": (i) => [i.seen_before == null ? "not logged" : i.seen_before ? "seen before" : "first time"],
+  "Ten-Game block": (i) => { const lo = Math.floor((i.game - 1) / 10) * 10 + 1; return [`Games ${String(lo).padStart(3, "0")}–${String(lo + 9).padStart(3, "0")}`]; },
+  "Game": (i) => ["Game " + String(i.game).padStart(3, "0")],
+};
+function renderPatterns() {
+  $("patterns").innerHTML = `<div class="controls"><span>Group Line Items by</span><select id="p-by">${Object.keys(GROUPS).map((k) => `<option>${k}</option>`).join("")}</select></div>
+    <p class="note">Avoidable = penalty for rejecting fair claims + Overcharges we accepted + Issuer income left on the table. Ratios are medians over Line Items where the Fair Value bracket is closed.</p>
+    <div class="panel" id="p-table"></div>
+    <h2>Our estimate against the Fair Value</h2><p class="note">Line Items with a closed bracket only. On the dashed line the estimate was exact; above it we were too high. Log scale. Blue used Price Memory, orange was the model alone.</p><div class="panel" id="p-scatter"></div>`;
+  const draw = () => {
+    const by = GROUPS[$("p-by").value], groups = new Map();
+    ITEMS.forEach((i) => by(i).forEach((k) => (groups.get(k) || groups.set(k, []).get(k)).push(i)));
+    const rows = [...groups].map(([name, xs]) => {
+      const closed = xs.filter((i) => i.t_quality === "tight" || i.t_quality === "bounded");
+      const covered = xs.filter((i) => i.t_lo > 0);
+      return { name, n: xs.length, net: sum(xs, (i) => i.net), income: sum(xs, (i) => i.income), cost: sum(xs, (i) => i.cost), penalty: sum(xs, (i) => i.penalty), overpaid: sum(xs, (i) => i.overpaid_cost), gap: sum(xs, (i) => i.issuer_gap),
+        fair: covered.length ? covered.filter((i) => i.our_fair).length / covered.length : null, nCovered: covered.length,
+        a: median(closed.map((i) => i.a_ratio)), b: median(closed.map((i) => i.b_ratio)), e: median(closed.map((i) => i.estimate_ratio)), err: rmsLog(closed.map((i) => i.estimate_ratio)), nClosed: closed.filter((i) => i.estimate_ratio > 0).length };
+    });
+    const scale = Math.max(...rows.map((r) => Math.abs(r.net)), 1);
+    table($("p-table"), [
+      { h: "Group", v: (r) => r.name, f: (r) => esc(r.name) },
+      { h: "Line Items", v: (r) => r.n, num: true },
+      { h: "Net", v: (r) => r.net, f: (r) => `<div class="bar-cell">${signed(r.net)}<i style="width:${(90 * Math.abs(r.net)) / scale}px;background:var(--${r.net >= 0 ? "good" : "bad"})"></i></div>`, num: true },
+      { h: "Net per item", v: (r) => r.net / r.n, f: (r) => signed(r.net / r.n), num: true },
+      { h: "Income", v: (r) => r.income, f: (r) => big(r.income), num: true },
+      { h: "Cost", v: (r) => r.cost, f: (r) => big(r.cost), num: true },
+      { h: "Avoidable", v: (r) => r.penalty + r.overpaid + r.gap, f: (r) => cost(r.penalty + r.overpaid + r.gap), num: true },
+      { h: "Penalty", v: (r) => r.penalty, f: (r) => cost(r.penalty), num: true },
+      { h: "Overcharges paid", v: (r) => r.overpaid, f: (r) => cost(r.overpaid), num: true },
+      { h: "Income missed", v: (r) => r.gap, f: (r) => cost(r.gap), num: true },
+      { h: "Our Charge fair", v: (r) => r.fair, f: (r) => (r.fair == null ? pct(null) : `${pct(r.fair)} <span class="dim">of ${r.nCovered}</span>`), num: true, title: "Share of covered Line Items where our Charge was at or below the Fair Value" },
+      { h: "a / t", v: (r) => r.a, f: (r) => ratio(r.a), num: true },
+      { h: "b / t", v: (r) => r.b, f: (r) => ratio(r.b), num: true },
+      { h: "Estimate / t", v: (r) => r.e, f: (r) => ratio(r.e), num: true },
+      { h: "Estimate error σ", v: (r) => r.err, f: (r) => (r.err == null ? pct(null) : `${r.err.toFixed(2)} <span class="dim">n=${r.nClosed}</span>`), num: true, title: "Root mean square of log(estimate / Fair Value) on closed brackets. 0 is perfect; the repo's bar for the estimate to earn money is about 0.6" },
+    ], rows, { sort: 6, dir: -1 });
+  };
+  $("p-by").onchange = draw;
+  draw();
+  const closed = ITEMS.filter((i) => (i.t_quality === "tight" || i.t_quality === "bounded") && i.t_hat);
+  $("p-scatter").innerHTML = scatter(closed.map((i) => ({ x: i.t, y: i.t_hat, color: i.channels.includes("B:memory") ? PALETTE[0] : PALETTE[1], go: i.game + "/" + i.index, title: `Game ${i.game} #${i.index} ${i.name}: estimate ${n2.format(i.t_hat)}, Fair Value ${n2.format(i.t)}` })), "Fair Value (recovered)", "Our estimate");
+  $("p-scatter").querySelectorAll("circle").forEach((c) => c.onclick = () => go(...c.dataset.go.split("/")));
+}
+
+/* Rivals */
+function renderRivals() {
+  $("rivals").innerHTML = `<p class="note">Charges are exact whenever somebody paid them. Limits are ranges. A rival's estimate of the Fair Value is never visible; the typical a / t and b / t below are what the record supports.</p><div class="panel" id="r-table"></div>`;
+  table($("r-table"), [
+    { h: "#", v: (p) => 1 + D.profiles.indexOf(p), num: true },
+    { h: "Team", v: (p) => p.team, f: (p) => esc(p.team) },
+    { h: "Net", v: (p) => p.net, f: (p) => signed(p.net), num: true },
+    { h: "Net flow, us vs them", v: (p) => D.versus[p.team], f: (p) => signed(D.versus[p.team]), num: true, title: "What they paid us minus what we paid them" },
+    { h: "Typical a / t", v: (p) => p.charge_ratio, f: (p) => `${ratio(p.charge_ratio)} <span class="dim">n=${p.charge_ratio_n}</span>`, num: true, title: "Median fair Charge as a share of the Fair Value, closed brackets only" },
+    { h: "Charges fair", v: (p) => p.fair_share, f: (p) => pct(p.fair_share), num: true, title: "On covered Line Items: share of its Charges at or below the Fair Value" },
+    { h: "Typical b / t", v: (p) => p.limit_ratio, f: (p) => ratio(p.limit_ratio), num: true, title: "Median Limit (midpoint of its range) as a share of the Fair Value, covered items" },
+    { h: "Fair claims accepted", v: (p) => p.accept_fair_share, f: (p) => pct(p.accept_fair_share), num: true },
+    { h: "Penalty paid", v: (p) => p.penalty, f: (p) => cost(p.penalty), num: true },
+    { h: "Overcharges paid", v: (p) => p.overpaid, f: (p) => cost(p.overpaid), num: true },
+    { h: "Charged nothing", v: (p) => p.silent_share, f: (p) => pct(p.silent_share), num: true, title: "Share of Line Items with a Charge of 0" },
+  ], D.profiles, { rowClass: (p) => (p.team === US ? "us" : "") });
+}
+
+const logged = D.games.filter((g) => g.has_logs).length;
+$("status").textContent = `Team ${US} · ${D.games_settled} of ${D.games_scheduled} Games settled · our logs for ${logged} · data from ${new Date(D.generated_at).toLocaleString()}`;
+$("foot").innerHTML = `<b>How to read this.</b> The Fair Value is never published. It is bracketed from the Transactions: a rejected Charge that was still paid (at 1.5×) was fair, so the Fair Value is at least that Charge; a rejected Charge that was paid nothing was an Overcharge, so the Fair Value is below it. "0?" means no team's Charge was proven fair, which is what an uncovered Line Item looks like. Our own Charge, Limit, estimate and coverage come from our run logs; other teams' Limits are ranges and their estimates are inferred.`;
+const [startTab, startGame, startItem] = location.hash.slice(1).split("/");
+if (startGame) { openGame = +startGame; openItem = startItem ? +startItem : null; }
+renderOverview(); renderRounds(); renderItems(); renderPatterns(); renderRivals();
+show(TABS.some(([id]) => id === startTab) ? startTab : "overview");
+if (!startGame) setTimeout(() => scrollTo(0, 0), 0);
+</script>
+</body>
+</html>
