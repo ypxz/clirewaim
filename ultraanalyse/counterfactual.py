@@ -31,7 +31,10 @@ def reviewer_cost(item: dict, us: str, limit: float) -> float:
         if name == us or not charge:
             continue
         if rival["fair"] is False:
-            cost += min(charge, item["cap"] or charge) if limit >= charge else 0.0
+            # Paid at the Cap, the true Charge is unseen and at least 4t: no Limit rule here
+            # reaches it, so it stays rejected.
+            accepted = limit >= charge and rival["a_kind"] != "at-least"
+            cost += charge if accepted else 0.0
         else:  # proven fair, or undetermined: counted as fair so a lower Limit is not flattered
             cost += charge if limit >= charge else 1.5 * charge
     return cost
