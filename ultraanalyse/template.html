@@ -406,7 +406,7 @@ function renderPatterns() {
       const covered = xs.filter((i) => i.t_lo > 0);
       return { name, n: xs.length, net: sum(xs, (i) => i.net), income: sum(xs, (i) => i.income), cost: sum(xs, (i) => i.cost), penalty: sum(xs, (i) => i.penalty), overpaid: sum(xs, (i) => i.overpaid_cost), gap: sum(xs, (i) => i.issuer_gap),
         fair: covered.length ? covered.filter((i) => i.our_fair).length / covered.length : null, nCovered: covered.length,
-        a: median(closed.map((i) => i.a_ratio)), b: median(closed.map((i) => i.b_ratio)), e: median(closed.map((i) => i.estimate_ratio)), err: rmsLog(closed.map((i) => i.estimate_ratio)), nClosed: closed.length };
+        a: median(closed.map((i) => i.a_ratio)), b: median(closed.map((i) => i.b_ratio)), e: median(closed.map((i) => i.estimate_ratio)), err: rmsLog(closed.map((i) => i.estimate_ratio)), nClosed: closed.filter((i) => i.estimate_ratio > 0).length };
     });
     const scale = Math.max(...rows.map((r) => Math.abs(r.net)), 1);
     table($("p-table"), [
