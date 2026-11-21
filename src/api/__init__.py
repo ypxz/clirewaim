@@ -11,6 +11,7 @@ from urllib.request import Request, urlopen
 from src.api.llm import get_llm_client, get_model_name, get_service_tier, query_llm, warm_llm_resources
 from src.api.tournament import (
     APIError,
+    is_transient,
     _get,
     _put,
     get_decryption_key,
@@ -23,6 +24,7 @@ from src.api.tournament import (
 __all__ = [
     # Tournament API & Network
     "APIError",
+    "is_transient",
     "urlopen",
     "Request",
     "_get",

@@ -4,10 +4,13 @@ import asyncio
 import logging
 from collections.abc import Callable, Sequence
 
-from src.api import submit_prices
+from src.api import is_transient, submit_prices
 from src.data.models import ItemPrice
 from src.strategies import STRATEGY_PRIORITIES
 from src.runtime.timing import log_timing, start_timer
+
+#: Pause before re-posting after the server or the network failed.
+RETRY_SECONDS = 1.0
 
 logger = logging.getLogger(__name__)
 Submitter = Callable[..., object]
@@ -276,6 +279,10 @@ class SubmissionCoordinator:
                 )
             except Exception as error:
                 logger.warning("Submission for Game %s failed: %s", self._game_id, error)
+                # The server or the network, not our payload: keep trying until the
+                # deadline, or the default submission stands (a = 0, b = 0).
+                retry = is_transient(error)
+                self._pending_force = self._pending_force or (retry and force_submission)
                 log_timing(
                     logger,
                     "submission",
@@ -287,6 +294,7 @@ class SubmissionCoordinator:
                     reason=reason,
                 )
             else:
+                retry = False
                 self._submitted = snapshot
                 self._submitted_signature = signature
                 logger.info(
@@ -305,8 +313,19 @@ class SubmissionCoordinator:
                     sequence=sequence,
                     reason=reason,
                 )
+            if retry and not self._closed and self._pending_signature == signature:
+                # Half of what is left at most, so the last attempt is never spent sleeping
+                # up to the deadline. `publish` and `close` set `_changed` and end the pause
+                # at once: newer prices do not wait behind a retry of older ones.
+                # Never under a tenth of a second, or the last moments become a burst.
+                remaining = max(self._deadline - loop.time(), 0.0)
+                pause = max(min(RETRY_SECONDS, remaining / 2), min(RETRY_SECONDS, 0.1))
+                try:
+                    await asyncio.wait_for(self._changed.wait(), timeout=pause)
+                except asyncio.TimeoutError:
+                    pass
             if not self._closed and (
-                self._pending_signature != signature or self._pending_force
+                retry or self._pending_signature != signature or self._pending_force
             ):
                 self._changed.set()
             else:
