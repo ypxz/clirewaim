@@ -137,22 +137,23 @@ def main() -> None:
     parser.add_argument(
         "--split", action="store_true", help="also print odd and even Games separately"
     )
-    parser.add_argument("--team", default=build.OUR_TEAM)
     args = parser.parse_args()
     first, last = (int(part) for part in args.games.split("-"))
-    items = _items(json.loads(build.DATASET.read_text()), first, last)
-    report(items, args.team, f"Games {first}-{last}")
+    dataset = json.loads(build.DATASET.read_text())
+    us = dataset["us"]  # the logged Charges and Limits in the dataset are this team's
+    items = _items(dataset, first, last)
+    report(items, us, f"Games {first}-{last}")
     if args.split:
-        report([i for i in items if i["game"] % 2], args.team, "odd Games")
-        report([i for i in items if not i["game"] % 2], args.team, "even Games")
+        report([i for i in items if i["game"] % 2], us, "odd Games")
+        report([i for i in items if not i["game"] % 2], us, "even Games")
         report(
             [i for i in items if "B:memory" in i["channels"]],
-            args.team,
+            us,
             "with Price Memory",
         )
         report(
             [i for i in items if "B:memory" not in i["channels"]],
-            args.team,
+            us,
             "model alone",
         )
 
