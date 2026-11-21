@@ -4,8 +4,9 @@
 
 Exact where the record is exact, bounded where it is not:
 
-- Limit: every rival Charge that anyone paid is known, with whether it was fair. A rival
-  Overcharge nobody accepted is unseen; it is assumed to stay rejected.
+- Limit: every rival Charge that anyone paid is known, usually with whether it was fair. A
+  rival Overcharge nobody accepted is unseen; a Limit above every Limit that rejected it may
+  have accepted it, so raising the Limit gives a lowest and a highest cost.
 - Charge: a rival's Limit is an interval and the Fair Value a bracket, so income under a new
   Charge is reported as a pessimistic and an optimistic figure.
 
@@ -23,24 +24,46 @@ from ultraanalyse import build
 COVERAGE_FLOOR = 2.0 / 3.0
 
 
+def _unseen_floor(item: dict, us: str, issuer: str) -> float:
+    """Lower bound on an Overcharge nobody paid: above the Fair Value and every Limit."""
+    floor = max(item["t_lo"] or 0.0, item.get("b") or 0.0)
+    for name, rival in item["teams"].items():
+        if name not in (us, issuer):
+            floor = max(floor, rival["b_lo"] or 0.0)
+    return floor
+
+
 def reviewer_cost(item: dict, us: str, limit: float) -> tuple[float, float]:
     """(lowest, highest) cost a Limit would have had on this Line Item.
 
-    The two differ only on an Overcharge paid at the Cap: the record shows the payout, not
-    the Charge, so a Limit at or above the payout may or may not have accepted it.
+    The two differ where the record does not show what a Limit would have met:
+
+    - an Overcharge paid at the Cap shows the payout, not the Charge, so a Limit at or
+      above the payout may or may not have accepted it;
+    - an Overcharge nobody paid is unseen, known only to lie above the Fair Value and every
+      Limit, so a Limit above that floor may have accepted it, for at most the Limit;
+    - a Charge every Reviewer accepted, above every Charge proven fair, may be fair or not,
+      so rejecting it costs between nothing and the penalty.
     """
     low = high = 0.0
     for name, rival in item["teams"].items():
-        charge = rival["a"]
-        if name == us or not charge:
+        if name == us:
             continue
-        if rival["fair"] is False:
+        charge = rival["a"]
+        if charge is None:
+            if limit > _unseen_floor(item, us, name):
+                high += limit
+        elif not charge:
+            continue
+        elif rival["fair"] is False:
             paid = charge if limit >= charge else 0.0
             high += paid
             low += 0.0 if rival["a_kind"] == "at-least" else paid
-        else:  # proven fair, or undetermined: counted as fair so a lower Limit is not flattered
-            paid = charge if limit >= charge else 1.5 * charge
-            low, high = low + paid, high + paid
+        elif limit >= charge:
+            low, high = low + charge, high + charge
+        else:
+            high += 1.5 * charge
+            low += 1.5 * charge if rival["fair"] else 0.0
     return low, high
 
 
