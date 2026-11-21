@@ -91,14 +91,9 @@ def build(var: Path, us: str) -> dict:
         items: list[dict] = []
         team_net: dict[str, float] = defaultdict(float)
         for index in sorted(by_item):
+            # Only a post that landed is a submission. A recorded proposal is not: a fraud
+            # lock can still rewrite its Limit, so without a run log the public record decides.
             submitted = run["final"].get(index)
-            if submitted is None and decision.get("proposals"):
-                proposal = (
-                    decision["proposals"]
-                    .get(decision.get("winner") or "", {})
-                    .get(str(index))
-                )
-                submitted = tuple(proposal) if proposal else None
             known = {us: submitted} if submitted else {}
             public = inversion.invert_item(by_item[index], known)
             if us not in public["teams"]:
